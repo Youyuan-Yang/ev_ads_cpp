@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.so
+.DS_Store
+.pytest_cache/
+.ruff_cache/
+
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+bags/run/
+bags/events/
+*.db3
+*.mcap
+
+firmware/esp32c6_mmwave_ble/.pio/

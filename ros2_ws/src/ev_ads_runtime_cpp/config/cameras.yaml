@@ -1,0 +1,38 @@
+camera_front:
+  ros__parameters:
+    name: "front"
+    mode: "device"
+    # 优先 by-id，避免 /dev/videoN 漂移
+    device: "/dev/v4l/by-id/usb-Sony_IMX415-video-index0"
+    width: 1920
+    height: 1080
+    fps: 30.0
+    pixel_format: "MJPG"
+    expected_sensor: "IMX415"
+    publish_compressed: true
+    publish_raw: false
+
+camera_rear:
+  ros__parameters:
+    name: "rear"
+    mode: "device"
+    device: "/dev/v4l/by-id/usb-DH-200W-X1-video-index0"
+    width: 1920
+    height: 1080
+    fps: 30.0
+    pixel_format: "MJPG"
+    expected_sensor: "DH-200W-X1"
+    publish_compressed: true
+    publish_raw: false
+
+camera_driver:
+  ros__parameters:
+    name: "driver"
+    mode: "device"
+    device: "/dev/v4l/by-id/usb-Driver_Cam-video-index0"
+    width: 1280
+    height: 720
+    fps: 25.0
+    pixel_format: "MJPG"
+    publish_compressed: true
+    publish_raw: false

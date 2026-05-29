@@ -1,0 +1,29 @@
+driver_monitor_node:
+  ros__parameters:
+    # SafeDrive DMS YOLOv8n 类别：
+    # 0 eye_open, 1 eye_half, 2 eye_closed, 3 mouth_open, 4 mouth_closed,
+    # 5 phone, 6 cigarette, 7 seatbelt_on, 8 seatbelt_off。
+    model_input_width: 640
+    model_input_height: 640
+    model_confidence_threshold: 0.35
+    model_nms_threshold: 0.45
+    model_has_objectness: false
+    face_class_ids: []
+    open_eye_class_ids: [0]
+    half_eye_class_ids: [1]
+    closed_eye_class_ids: [2]
+    yawn_class_ids: [3]
+    phone_class_ids: [5]
+    distracted_class_ids: [6]
+    fatigue_class_ids: []
+
+    # YuNet 人脸检测参数；模型很小，适合在 RK3588 上常驻运行。
+    face_input_width: 320
+    face_input_height: 320
+    face_score_threshold: 0.60
+    face_nms_threshold: 0.30
+    face_top_k: 5000
+
+    # 人脸短时漏检不立刻报警，连续消失后按分心/离岗风险处理。
+    face_absence_warning_ms: 1500
+    face_absence_score: 0.65

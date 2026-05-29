@@ -1,0 +1,8 @@
+name: mmwave_abnormal_low_confidence
+description: 心率异常但 confidence 低，不能单独升 L2/L3。
+duration_s: 3.0
+events:
+  - t: 0.0
+    mmwave: {heart_rate: 180, breath_rate: 50, confidence: 0.2}
+assertions:
+  max_level_at_most: 1

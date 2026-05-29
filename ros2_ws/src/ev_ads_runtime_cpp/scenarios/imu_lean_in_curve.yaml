@@ -1,0 +1,14 @@
+name: imu_lean_in_curve
+description: roll 较大 + yaw_rate 较高 + 前方有风险，期望报警但 brake safety gate 禁止制动。
+duration_s: 5.0
+events:
+  - t: 0.0
+    imu: {roll: 0.5, yaw_rate: 0.8, motion_flags: 0x02}
+  - t: 1.0
+    front: {primary_class: 2, distance_m: 10, closing_speed_mps: 6}
+  - t: 3.0
+    front: {primary_class: 2, distance_m: 4,  closing_speed_mps: 6}
+    imu: {roll: 0.6, yaw_rate: 0.9, motion_flags: 0x02}
+assertions:
+  max_level_at_least: 2
+  brake_enable_must_be_false: true

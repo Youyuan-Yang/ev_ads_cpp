@@ -1,0 +1,18 @@
+imu_node:
+  ros__parameters:
+    driver: "fake"            # fake / uart / i2c —— 上电前确认实际接线再切换
+    port: "/dev/ttyUSB0"
+    baud: 921600
+    bus: 1
+    addr: 0x68
+    rate_hz: 100.0
+    publish_imu: true
+    # 车体坐标系：X=车头 Y=左侧 Z=向上。
+    # 例如 IMU 倒装 180°：[180.0, 0.0, 0.0]
+    mount_rpy_deg: [0.0, 0.0, 0.0]
+    lowpass_alpha: 0.2
+    bias_seconds: 2.0
+    hard_brake_g: 0.6
+    lean_deg: 25.0
+    bump_jerk: 30.0
+    frame_id: "imu_link"

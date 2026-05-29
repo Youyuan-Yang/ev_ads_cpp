@@ -1,0 +1,25 @@
+fusion_node:
+  ros__parameters:
+    profile: "urban_day"
+    publish_rate_hz: 20.0
+    enable_real_brake: false      # 默认禁用真实制动
+    w_front: 0.35
+    w_rear: 0.25
+    w_driver: 0.20
+    w_imu: 0.15
+    w_mmwave: 0.05
+    thr_l1: 0.30
+    thr_l2: 0.55
+    thr_l3: 0.75
+    hysteresis: 0.05
+    front_ttc_l3: 1.2
+    # v2 融合模型：可靠度加权 + 概率证据 + TTC 紧急度 + 协同项
+    zero_stale: true
+    stale_reliability: 0.25
+    weighted_gain: 0.72
+    probabilistic_gain: 0.28
+    synergy_gain: 0.12
+    consensus_bonus: 0.08
+    front_emergency_ttc: 0.8
+    front_warning_ttc: 2.5
+    front_l3_floor: 0.78

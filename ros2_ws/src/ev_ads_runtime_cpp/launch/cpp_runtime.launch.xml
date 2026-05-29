@@ -1,0 +1,101 @@
+<launch>
+  <!-- C++ 运行链路：除测试外不再启动项目内 Python 节点。 -->
+  <arg name="use_fakes" default="true"/>
+  <arg name="perception_mode" default="scripted"/>
+  <arg name="imu_driver" default="i2c"/>
+  <arg name="mmwave_mode" default="ble"/>
+  <arg name="fusion_config" default="$(find-pkg-share ev_ads_runtime_cpp)/config/fusion_urban_day.yaml"/>
+  <arg name="rear_model_path" default=""/>
+  <arg name="driver_model_path" default=""/>
+  <arg name="driver_face_model_path" default=""/>
+  <arg name="enable_real_brake" default="false"/>
+  <arg name="event_log_path" default="/tmp/ev_ads/events.jsonl"/>
+
+  <node pkg="ev_ads_runtime_cpp" exec="mmwave_node_cpp" name="mmwave_node" output="screen" if="$(var use_fakes)">
+    <param name="mode" value="fake"/>
+    <param name="publish_rate_hz" value="10.0"/>
+  </node>
+  <node pkg="ev_ads_runtime_cpp" exec="mmwave_node_cpp" name="mmwave_node" output="screen" unless="$(var use_fakes)">
+    <param name="mode" value="$(var mmwave_mode)"/>
+    <param name="publish_rate_hz" value="10.0"/>
+  </node>
+
+  <node pkg="ev_ads_runtime_cpp" exec="camera_node_cpp" name="camera_front" output="screen" if="$(var use_fakes)">
+    <param from="$(find-pkg-share ev_ads_runtime_cpp)/config/cameras.yaml"/>
+    <param name="name" value="front"/>
+    <param name="mode" value="fake"/>
+  </node>
+  <node pkg="ev_ads_runtime_cpp" exec="camera_node_cpp" name="camera_front" output="screen" unless="$(var use_fakes)">
+    <param from="$(find-pkg-share ev_ads_runtime_cpp)/config/cameras.yaml"/>
+    <param name="name" value="front"/>
+    <param name="mode" value="device"/>
+  </node>
+
+  <node pkg="ev_ads_runtime_cpp" exec="camera_node_cpp" name="camera_rear" output="screen" if="$(var use_fakes)">
+    <param from="$(find-pkg-share ev_ads_runtime_cpp)/config/cameras.yaml"/>
+    <param name="name" value="rear"/>
+    <param name="mode" value="fake"/>
+  </node>
+  <node pkg="ev_ads_runtime_cpp" exec="camera_node_cpp" name="camera_rear" output="screen" unless="$(var use_fakes)">
+    <param from="$(find-pkg-share ev_ads_runtime_cpp)/config/cameras.yaml"/>
+    <param name="name" value="rear"/>
+    <param name="mode" value="device"/>
+  </node>
+
+  <node pkg="ev_ads_runtime_cpp" exec="camera_node_cpp" name="camera_driver" output="screen" if="$(var use_fakes)">
+    <param from="$(find-pkg-share ev_ads_runtime_cpp)/config/cameras.yaml"/>
+    <param name="name" value="driver"/>
+    <param name="mode" value="fake"/>
+  </node>
+  <node pkg="ev_ads_runtime_cpp" exec="camera_node_cpp" name="camera_driver" output="screen" unless="$(var use_fakes)">
+    <param from="$(find-pkg-share ev_ads_runtime_cpp)/config/cameras.yaml"/>
+    <param name="name" value="driver"/>
+    <param name="mode" value="device"/>
+  </node>
+
+  <node pkg="ev_ads_runtime_cpp" exec="imu_node_cpp" name="imu_node" output="screen" if="$(var use_fakes)">
+    <param from="$(find-pkg-share ev_ads_runtime_cpp)/config/imu.yaml"/>
+    <param name="driver" value="fake"/>
+  </node>
+  <node pkg="ev_ads_runtime_cpp" exec="imu_node_cpp" name="imu_node" output="screen" unless="$(var use_fakes)">
+    <param from="$(find-pkg-share ev_ads_runtime_cpp)/config/imu.yaml"/>
+    <param name="driver" value="$(var imu_driver)"/>
+  </node>
+
+  <node pkg="ev_ads_runtime_cpp" exec="front_node_cpp" name="front_perception_node" output="screen">
+    <param name="fake_mode" value="$(var perception_mode)"/>
+    <param name="require_camera_health" value="true"/>
+  </node>
+
+  <node pkg="ev_ads_runtime_cpp" exec="rear_node_cpp" name="rear_perception_node" output="screen">
+    <param from="$(find-pkg-share ev_ads_runtime_cpp)/config/rear_fisheye.yaml"/>
+    <param name="fake_mode" value="$(var perception_mode)"/>
+    <param name="require_camera_health" value="true"/>
+    <param name="model_path" value="$(var rear_model_path)"/>
+    <param name="distance_focal_px" value="700.0"/>
+    <param name="present_max_m" value="10.0"/>
+    <param name="approaching_speed_mps" value="1.0"/>
+  </node>
+
+  <node pkg="ev_ads_runtime_cpp" exec="driver_monitor_node_cpp" name="driver_monitor_node" output="screen">
+    <param from="$(find-pkg-share ev_ads_runtime_cpp)/config/driver_monitor.yaml"/>
+    <param name="fake_mode" value="$(var perception_mode)"/>
+    <param name="require_camera_health" value="true"/>
+    <param name="model_path" value="$(var driver_model_path)"/>
+    <param name="face_model_path" value="$(var driver_face_model_path)"/>
+  </node>
+
+  <node pkg="ev_ads_runtime_cpp" exec="fusion_node_cpp" name="fusion_node" output="screen">
+    <param from="$(var fusion_config)"/>
+    <param name="enable_real_brake" value="$(var enable_real_brake)"/>
+    <param name="zero_stale" value="true"/>
+  </node>
+
+  <node pkg="ev_ads_runtime_cpp" exec="hmi_node_cpp" name="hmi_node" output="screen">
+    <param name="dashboard_rate_hz" value="2.0"/>
+  </node>
+
+  <node pkg="ev_ads_runtime_cpp" exec="event_logger_node_cpp" name="event_logger_node" output="screen">
+    <param name="log_path" value="$(var event_log_path)"/>
+  </node>
+</launch>

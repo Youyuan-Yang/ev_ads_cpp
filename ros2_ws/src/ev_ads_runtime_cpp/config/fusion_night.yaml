@@ -1,0 +1,24 @@
+fusion_node:
+  ros__parameters:
+    profile: "night"
+    publish_rate_hz: 20.0
+    enable_real_brake: false
+    w_front: 0.30
+    w_rear: 0.25
+    w_driver: 0.25
+    w_imu: 0.15
+    w_mmwave: 0.05
+    thr_l1: 0.28
+    thr_l2: 0.52
+    thr_l3: 0.72
+    hysteresis: 0.05
+    front_ttc_l3: 1.4
+    zero_stale: true
+    stale_reliability: 0.25
+    weighted_gain: 0.70
+    probabilistic_gain: 0.30
+    synergy_gain: 0.13
+    consensus_bonus: 0.08
+    front_emergency_ttc: 0.9
+    front_warning_ttc: 2.8
+    front_l3_floor: 0.78

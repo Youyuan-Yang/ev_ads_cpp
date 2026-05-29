@@ -1,0 +1,24 @@
+fusion_node:
+  ros__parameters:
+    profile: "long_ride"
+    publish_rate_hz: 20.0
+    enable_real_brake: false
+    w_front: 0.25
+    w_rear: 0.15
+    w_driver: 0.35
+    w_imu: 0.15
+    w_mmwave: 0.10
+    thr_l1: 0.28
+    thr_l2: 0.52
+    thr_l3: 0.75
+    hysteresis: 0.06
+    front_ttc_l3: 1.2
+    zero_stale: true
+    stale_reliability: 0.25
+    weighted_gain: 0.70
+    probabilistic_gain: 0.30
+    synergy_gain: 0.14
+    consensus_bonus: 0.10
+    front_emergency_ttc: 0.8
+    front_warning_ttc: 2.5
+    front_l3_floor: 0.78

@@ -1,0 +1,14 @@
+name: driver_drowsy
+description: 连续闭眼 2.5s，期望 L2，不触发制动。
+duration_s: 4.0
+events:
+  - t: 0.0
+    driver: {face_visible: 1, eye_closure_ratio: 0.1}
+  - t: 0.5
+    driver: {face_visible: 1, eye_closure_ratio: 0.85, head_pitch_rad: 0.3}
+  - t: 3.0
+    driver: {face_visible: 1, eye_closure_ratio: 0.9,  head_pitch_rad: 0.45}
+assertions:
+  max_level_at_least: 2
+  max_level_at_most: 2
+  brake_enable_must_be_false: true

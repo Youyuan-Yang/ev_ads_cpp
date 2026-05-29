@@ -1,0 +1,32 @@
+[Unit]
+Description=EV-ADS 边缘运行服务（毫米波、传感器、融合）
+# 网络起来 + 蓝牙就绪 后再启动
+After=network-online.target NetworkManager-wait-online.service bluetooth.service
+Wants=network-online.target bluetooth.service
+
+[Service]
+Type=simple
+User=@USERNAME@
+Group=@USERNAME@
+Environment=HOME=/home/@USERNAME@
+Environment=LANG=en_US.UTF-8
+Environment=RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+# install_deps.sh 会把 @EV_ADS_DIR@ 替换成实际路径
+WorkingDirectory=@EV_ADS_DIR@
+ExecStart=/bin/bash @EV_ADS_DIR@/deploy/ev_ads_boot.sh
+
+# 失败自动重启
+Restart=on-failure
+RestartSec=5
+
+# 日志
+StandardOutput=append:/var/log/ev_ads.log
+StandardError=append:/var/log/ev_ads.log
+
+# 安全
+TimeoutStartSec=120
+TimeoutStopSec=15
+KillMode=mixed
+
+[Install]
+WantedBy=multi-user.target
