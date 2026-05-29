@@ -9,7 +9,8 @@
   <arg name="driver_model_path" default=""/>
   <arg name="driver_face_model_path" default=""/>
   <arg name="enable_real_brake" default="false"/>
-  <arg name="event_log_path" default="/tmp/ev_ads/events.jsonl"/>
+  <arg name="event_storage_backend" default="sqlite"/>
+  <arg name="event_log_path" default="/tmp/ev_ads/events.sqlite"/>
 
   <node pkg="ev_ads_runtime_cpp" exec="mmwave_node_cpp" name="mmwave_node" output="screen" if="$(var use_fakes)">
     <param name="mode" value="fake"/>
@@ -96,6 +97,8 @@
   </node>
 
   <node pkg="ev_ads_runtime_cpp" exec="event_logger_node_cpp" name="event_logger_node" output="screen">
+    <param name="storage_backend" value="$(var event_storage_backend)"/>
     <param name="log_path" value="$(var event_log_path)"/>
+    <param name="flush_every_n" value="32"/>
   </node>
 </launch>

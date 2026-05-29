@@ -36,6 +36,16 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 colcon test --event-handlers console_direct+
 ```
 
+## 2.1 Mac 核心测试
+
+该目录不依赖 ROS，可在 Mac 上直接验证核心算法和事件存储：
+
+```bash
+cmake -S test -B test/build
+cmake --build test/build
+ctest --test-dir test/build --output-on-failure
+```
+
 ## 3. 无硬件冒烟测试
 
 ```bash
@@ -92,14 +102,22 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 
 ## 6. 日志检查
 
-默认事件日志：
+默认事件库：
 
 ```text
-/tmp/ev_ads/events.jsonl
+/tmp/ev_ads/events.sqlite
 ```
 
-检查：
+检查最近事件：
 
 ```bash
-tail -f /tmp/ev_ads/events.jsonl
+sqlite3 /tmp/ev_ads/events.sqlite "select t,type,payload from events order by id desc limit 20;"
+```
+
+兼容 JSONL：
+
+```bash
+ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
+  event_storage_backend:=jsonl \
+  event_log_path:=/tmp/ev_ads/events.jsonl
 ```

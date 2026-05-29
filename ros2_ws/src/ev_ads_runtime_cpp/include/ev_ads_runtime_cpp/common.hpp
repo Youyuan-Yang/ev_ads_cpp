@@ -7,71 +7,52 @@
 #include <string>
 #include <vector>
 
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
+#include "ev_ads_runtime_cpp/types.hpp"
 
 namespace ev_ads_runtime_cpp {
 
-constexpr uint8_t HEALTH_OK = 0;
-constexpr uint8_t HEALTH_STALE = 1;
-constexpr uint8_t HEALTH_ERROR = 2;
-constexpr uint8_t HEALTH_DISCONNECTED = 3;
+inline constexpr double kPi = 3.14159265358979323846;
 
-constexpr uint8_t LEVEL_L0 = 0;
-constexpr uint8_t LEVEL_L1 = 1;
-constexpr uint8_t LEVEL_L2 = 2;
-constexpr uint8_t LEVEL_L3 = 3;
-
-constexpr uint8_t FACE_NO = 0;
-constexpr uint8_t FACE_YES = 1;
-constexpr uint8_t FACE_UNKNOWN = 2;
-
-constexpr uint8_t CLASS_NONE = 0;
-constexpr uint8_t CLASS_PEDESTRIAN = 1;
-constexpr uint8_t CLASS_VEHICLE = 2;
-constexpr uint8_t CLASS_BICYCLE = 3;
-constexpr uint8_t CLASS_ANIMAL = 4;
-constexpr uint8_t CLASS_ROAD_OBSTACLE = 5;
-constexpr uint8_t CLASS_POTHOLE = 6;
-
-constexpr uint8_t ZONE_CLEAR = 0;
-constexpr uint8_t ZONE_PRESENT = 1;
-constexpr uint8_t ZONE_APPROACHING = 2;
-
-constexpr uint32_t MOTION_HARD_BRAKE = 0x01;
-constexpr uint32_t MOTION_LEAN = 0x02;
-constexpr uint32_t MOTION_BUMP = 0x04;
-constexpr uint32_t MOTION_FALL = 0x08;
+#ifndef M_PI
+#define M_PI ev_ads_runtime_cpp::kPi
+#endif
 
 template <typename T>
 T clamp(T v, T lo, T hi) {
   return std::max(lo, std::min(v, hi));
 }
 
-inline bool bad_health(uint8_t health, bool zero_stale = true) {
-  if (health == HEALTH_ERROR || health == HEALTH_DISCONNECTED) {
+inline bool bad_health(Health health, bool zero_stale = true) {
+  if (health == Health::kError || health == Health::kDisconnected) {
     return true;
   }
-  return zero_stale && health == HEALTH_STALE;
+  return zero_stale && health == Health::kStale;
 }
 
-inline double class_weight(uint8_t cls) {
+inline bool bad_health(uint8_t health, bool zero_stale = true) {
+  return bad_health(health_from_ros(health), zero_stale);
+}
+
+inline double class_weight(ObjectClass cls) {
   switch (cls) {
-    case CLASS_PEDESTRIAN:
+    case ObjectClass::kPedestrian:
       return 1.0;
-    case CLASS_VEHICLE:
-    case CLASS_BICYCLE:
+    case ObjectClass::kVehicle:
+    case ObjectClass::kBicycle:
       return 0.85;
-    case CLASS_ANIMAL:
+    case ObjectClass::kRoadAnimal:
       return 0.70;
-    case CLASS_ROAD_OBSTACLE:
+    case ObjectClass::kRoadObstacle:
       return 0.55;
-    case CLASS_POTHOLE:
+    case ObjectClass::kPothole:
       return 0.35;
     default:
       return 0.0;
   }
+}
+
+inline double class_weight(uint8_t cls) {
+  return class_weight(object_class_from_ros(cls));
 }
 
 inline double estimate_ttc(double distance_m, double closing_speed_mps) {
@@ -82,11 +63,11 @@ inline double estimate_ttc(double distance_m, double closing_speed_mps) {
 }
 
 inline double front_risk_score(
-    uint8_t primary_class,
+    ObjectClass primary_class,
     double distance_m,
     double closing_speed_mps,
     double lateral_offset_m) {
-  if (primary_class == CLASS_NONE) {
+  if (primary_class == ObjectClass::kNone) {
     return 0.0;
   }
   const double ttc = estimate_ttc(distance_m, closing_speed_mps);
@@ -108,26 +89,46 @@ inline double front_risk_score(
   return clamp(base * class_weight(primary_class) * lateral_penalty, 0.0, 1.0);
 }
 
-inline uint8_t zone_state(
+inline double front_risk_score(
+    uint8_t primary_class,
+    double distance_m,
+    double closing_speed_mps,
+    double lateral_offset_m) {
+  return front_risk_score(
+      object_class_from_ros(primary_class),
+      distance_m,
+      closing_speed_mps,
+      lateral_offset_m);
+}
+
+inline ZoneState zone_state_enum(
     double distance_m,
     double closing_speed_mps,
     double approaching_speed = 3.0,
     double present_max_m = 8.0) {
   if (distance_m < 0.0 || distance_m > present_max_m) {
-    return ZONE_CLEAR;
+    return ZoneState::kClear;
   }
   if (closing_speed_mps >= approaching_speed) {
-    return ZONE_APPROACHING;
+    return ZoneState::kApproaching;
   }
-  return ZONE_PRESENT;
+  return ZoneState::kPresent;
 }
 
-inline double aggregate_rear_risk(uint8_t left, uint8_t center, uint8_t right) {
-  auto w = [](uint8_t state) {
+inline uint8_t zone_state(
+    double distance_m,
+    double closing_speed_mps,
+    double approaching_speed = 3.0,
+    double present_max_m = 8.0) {
+  return to_ros(zone_state_enum(distance_m, closing_speed_mps, approaching_speed, present_max_m));
+}
+
+inline double aggregate_rear_risk(ZoneState left, ZoneState center, ZoneState right) {
+  auto w = [](ZoneState state) {
     switch (state) {
-      case ZONE_PRESENT:
+      case ZoneState::kPresent:
         return 0.2;
-      case ZONE_APPROACHING:
+      case ZoneState::kApproaching:
         return 0.7;
       default:
         return 0.0;
@@ -136,13 +137,17 @@ inline double aggregate_rear_risk(uint8_t left, uint8_t center, uint8_t right) {
   return clamp(std::max(w(left), w(right)) + 0.5 * w(center), 0.0, 1.0);
 }
 
+inline double aggregate_rear_risk(uint8_t left, uint8_t center, uint8_t right) {
+  return aggregate_rear_risk(zone_from_ros(left), zone_from_ros(center), zone_from_ros(right));
+}
+
 inline double fatigue_score(
-    uint8_t face_visible,
+    FaceVisibility face_visible,
     double eye_closure_ratio,
     double head_pitch_rad,
     double head_yaw_rad,
     double distraction_ratio) {
-  if (face_visible != FACE_YES) {
+  if (face_visible != FaceVisibility::kYes) {
     return 0.0;
   }
   const double eye = clamp((eye_closure_ratio - 0.2) / 0.4, 0.0, 1.0);
@@ -152,6 +157,20 @@ inline double fatigue_score(
       clamp((std::abs(head_yaw_rad) - M_PI / 9.0) / (M_PI / 6.0), 0.0, 1.0);
   const double distraction = clamp(distraction_ratio, 0.0, 1.0);
   return clamp(0.55 * eye + 0.25 * pitch + 0.10 * yaw + 0.10 * distraction, 0.0, 1.0);
+}
+
+inline double fatigue_score(
+    uint8_t face_visible,
+    double eye_closure_ratio,
+    double head_pitch_rad,
+    double head_yaw_rad,
+    double distraction_ratio) {
+  return fatigue_score(
+      face_from_ros(face_visible),
+      eye_closure_ratio,
+      head_pitch_rad,
+      head_yaw_rad,
+      distraction_ratio);
 }
 
 inline double imu_score(uint32_t motion_flags) {

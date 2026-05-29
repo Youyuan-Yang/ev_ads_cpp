@@ -12,7 +12,10 @@
 - C++ 后置 YOLO ONNX fallback。
 - C++ 驾驶员 YuNet + DMS YOLO ONNX fallback。
 - C++ 多模态融合 v2。
-- C++ HMI、事件记录和毫米波入口。
+- C++ HMI、SQLite/WAL 事件记录和毫米波入口。
+- `types.hpp` 统一 enum class，ROS 消息中的 `uint8` 只作为边界编码。
+- `topics.hpp` 与 `runtime_config.hpp` 集中话题名和配置对象，减少节点内硬编码。
+- `fusion_core.hpp` 和 `event_store.hpp/cpp` 已能在 Mac 上脱离 ROS 单测。
 
 ## 2. P0：板端验证
 
@@ -20,7 +23,7 @@
 2. 以 `use_fakes:=true` 验证 C++ fake 链路。
 3. 以 `use_fakes:=false perception_mode:=scripted` 验证真实摄像头和 IMU。
 4. 毫米波 BLE 后端未接入前，应明确显示 `DISCONNECTED`。
-5. 记录 CPU、温度、内存、topic hz 和事件日志。
+5. 记录 CPU、温度、内存、topic hz 和 SQLite 事件库。
 
 ## 3. P1：模型落地
 
@@ -49,9 +52,10 @@ DMS：
 
 ## 4. P2：工程化
 
-- 增加 C++ gtest，覆盖 `common.hpp`、`yolo_onnx` 输出解析和 fusion v2。
+- 已新增 Mac CMake 测试目录 `test/`，覆盖 `common.hpp`、`FusionCore` 和 `EventStore`；后续再接入 gtest 与 `yolo_onnx` 输出解析用例。
 - 增加 diagnostics topic，报告延迟、频率、health。
 - 增加模型版本记录：文件 hash、输入尺寸、类别表、阈值、测试集结果、许可证。
+- 高频事件默认写 SQLite/WAL 并批量提交；JSONL 仅用于兼容、调试和小流量回放。
 - 长稳测试至少 2 小时，记录温度、丢帧、误报和漏报。
 
 ## 5. P3：性能优化

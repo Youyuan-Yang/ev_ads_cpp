@@ -7,7 +7,7 @@
 该项目在 RK3588 上运行 C++ 链路：
 
 - 三路摄像头、IMU、前向感知、后向感知、驾驶员监测、融合决策。
-- C++ 终端 HMI 与 JSONL 事件记录。
+- C++ 终端 HMI 与 SQLite/WAL 事件记录，JSONL 仅保留兼容后端。
 - C++ 毫米波入口，当前 fake/jsonl 可用，BLE 后端待接 BlueZ D-Bus。
 
 ## 2. 系统依赖
@@ -25,6 +25,8 @@ sudo apt install -y \
   libopencv-dev \
   build-essential \
   cmake \
+  sqlite3 \
+  libsqlite3-dev \
   i2c-tools \
   v4l-utils \
   bluez \
@@ -79,7 +81,9 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
   perception_mode:=model \
   rear_model_path:=/opt/ev_ads/models/onnx/rear_yolo.onnx \
   driver_model_path:=/opt/ev_ads/models/onnx/driver_dms_yolo.onnx \
-  driver_face_model_path:=/opt/ev_ads/models/onnx/driver_face_yunet.onnx
+  driver_face_model_path:=/opt/ev_ads/models/onnx/driver_face_yunet.onnx \
+  event_storage_backend:=sqlite \
+  event_log_path:=/tmp/ev_ads/events.sqlite
 ```
 
 真实制动默认不要放入开机自启。仅低速台架验证时手动加：

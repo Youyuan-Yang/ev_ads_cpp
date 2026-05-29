@@ -14,6 +14,7 @@
 | g++ | 11+ | C++17 构建 |
 | cmake | 3.16+ | 构建 |
 | libopencv-dev | 4.x | 摄像头、JPEG、OpenCV DNN ONNX fallback |
+| sqlite3 / libsqlite3-dev | 3.x | 事件库 SQLite/WAL 存储 |
 | rosbag2 | Humble | 可选录包 |
 
 说明：ROS 2/colcon 的系统工具会依赖 `python3-*` 包，但该项目副本不再保留 Python 运行代码。

@@ -8,10 +8,14 @@ __pycache__/
 ros2_ws/build/
 ros2_ws/install/
 ros2_ws/log/
+test/build/
 
 bags/run/
 bags/events/
 *.db3
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 *.mcap
 
 firmware/esp32c6_mmwave_ble/.pio/

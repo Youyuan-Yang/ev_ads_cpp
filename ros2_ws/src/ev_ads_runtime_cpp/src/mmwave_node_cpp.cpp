@@ -9,6 +9,7 @@
 
 #include "ev_ads_interfaces/msg/mm_wave_vital.hpp"
 #include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/topics.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 namespace ev_ads_runtime_cpp {
@@ -45,7 +46,7 @@ class MmWaveNodeCpp final : public rclcpp::Node {
     t0_ = now();
 
     pub_ = create_publisher<ev_ads_interfaces::msg::MmWaveVital>(
-        "/sensor/mmwave/vital", rclcpp::QoS(10));
+        topics_.mmwave_vital, rclcpp::QoS(10));
 
     if (mode_ == "jsonl" && !jsonl_path_.empty()) {
       jsonl_.open(jsonl_path_);
@@ -138,6 +139,7 @@ class MmWaveNodeCpp final : public rclcpp::Node {
   std::string mode_;
   std::string jsonl_path_;
   std::string frame_id_;
+  RuntimeTopics topics_;
   double publish_rate_hz_{10.0};
   uint32_t seq_{0};
   uint32_t drop_count_{0};

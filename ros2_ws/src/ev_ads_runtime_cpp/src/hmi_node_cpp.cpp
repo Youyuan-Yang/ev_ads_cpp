@@ -14,20 +14,22 @@
 #include "ev_ads_interfaces/msg/risk_state.hpp"
 #include "ev_ads_interfaces/msg/vehicle_motion.hpp"
 #include "ev_ads_interfaces/msg/warning_command.hpp"
+#include "ev_ads_runtime_cpp/types.hpp"
+#include "ev_ads_runtime_cpp/topics.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 namespace ev_ads_runtime_cpp {
 namespace {
 
 const char* health_text(uint8_t health) {
-  switch (health) {
-    case 0:
+  switch (health_from_ros(health)) {
+    case Health::kOk:
       return "OK";
-    case 1:
+    case Health::kStale:
       return "STALE";
-    case 2:
+    case Health::kError:
       return "ERROR";
-    case 3:
+    case Health::kDisconnected:
       return "DISCONNECTED";
     default:
       return "UNKNOWN";
@@ -56,17 +58,17 @@ class HmiNodeCpp final : public rclcpp::Node {
   HmiNodeCpp() : Node("hmi_node_cpp") {
     const double rate = declare_parameter<double>("dashboard_rate_hz", 2.0);
     risk_sub_ = create_subscription<ev_ads_interfaces::msg::RiskState>(
-        "/decision/risk_state", rclcpp::QoS(10),
+        topics_.risk_state, rclcpp::QoS(10),
         [this](ev_ads_interfaces::msg::RiskState::SharedPtr msg) {
           on_risk(*msg);
         });
     warning_sub_ = create_subscription<ev_ads_interfaces::msg::WarningCommand>(
-        "/decision/warning_cmd", rclcpp::QoS(10),
+        topics_.warning_cmd, rclcpp::QoS(10),
         [this](ev_ads_interfaces::msg::WarningCommand::SharedPtr msg) {
           on_warning(*msg);
         });
     brake_sub_ = create_subscription<ev_ads_interfaces::msg::BrakeCommand>(
-        "/decision/brake_cmd", rclcpp::QoS(1),
+        topics_.brake_cmd, rclcpp::QoS(1),
         [this](ev_ads_interfaces::msg::BrakeCommand::SharedPtr msg) {
           brake_ = *msg;
           has_brake_ = true;
@@ -81,31 +83,31 @@ class HmiNodeCpp final : public rclcpp::Node {
           }
         });
     front_sub_ = create_subscription<ev_ads_interfaces::msg::FrontRisk>(
-        "/perception/front_risk", rclcpp::QoS(10),
+        topics_.front_risk, rclcpp::QoS(10),
         [this](ev_ads_interfaces::msg::FrontRisk::SharedPtr msg) {
           front_ = *msg;
           has_front_ = true;
         });
     rear_sub_ = create_subscription<ev_ads_interfaces::msg::BlindSpotState>(
-        "/perception/blind_spot", rclcpp::QoS(10),
+        topics_.blind_spot, rclcpp::QoS(10),
         [this](ev_ads_interfaces::msg::BlindSpotState::SharedPtr msg) {
           rear_ = *msg;
           has_rear_ = true;
         });
     driver_sub_ = create_subscription<ev_ads_interfaces::msg::DriverState>(
-        "/perception/driver_state", rclcpp::QoS(10),
+        topics_.driver_state, rclcpp::QoS(10),
         [this](ev_ads_interfaces::msg::DriverState::SharedPtr msg) {
           driver_ = *msg;
           has_driver_ = true;
         });
     motion_sub_ = create_subscription<ev_ads_interfaces::msg::VehicleMotion>(
-        "/vehicle/motion", rclcpp::QoS(50),
+        topics_.vehicle_motion, rclcpp::QoS(50),
         [this](ev_ads_interfaces::msg::VehicleMotion::SharedPtr msg) {
           motion_ = *msg;
           has_motion_ = true;
         });
     mmwave_sub_ = create_subscription<ev_ads_interfaces::msg::MmWaveVital>(
-        "/sensor/mmwave/vital", rclcpp::QoS(10),
+        topics_.mmwave_vital, rclcpp::QoS(10),
         [this](ev_ads_interfaces::msg::MmWaveVital::SharedPtr msg) {
           mmwave_ = *msg;
           has_mmwave_ = true;
@@ -146,7 +148,7 @@ class HmiNodeCpp final : public rclcpp::Node {
 
   void dashboard() {
     if (!has_risk_) {
-      std::printf("\r[hmi] 等待 /decision/risk_state ...");
+      std::printf("\r[hmi] 等待 %s ...", topics_.risk_state.c_str());
       std::fflush(stdout);
       return;
     }
@@ -186,6 +188,7 @@ class HmiNodeCpp final : public rclcpp::Node {
   }
 
   int last_level_{-1};
+  RuntimeTopics topics_;
   bool has_risk_{false};
   bool has_front_{false};
   bool has_rear_{false};

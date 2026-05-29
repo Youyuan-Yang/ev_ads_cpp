@@ -6,6 +6,7 @@
 
 #include "ev_ads_interfaces/msg/front_risk.hpp"
 #include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/topics.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/float32_multi_array.hpp"
 #include "std_msgs/msg/u_int8.hpp"
@@ -30,9 +31,9 @@ class FrontNodeCpp final : public rclcpp::Node {
     camera_timeout_ms_ = declare_parameter<int>("camera_timeout_ms", 1000);
 
     pub_ = create_publisher<ev_ads_interfaces::msg::FrontRisk>(
-        "/perception/front_risk", rclcpp::QoS(10));
+        topics_.front_risk, rclcpp::QoS(10));
     sim_sub_ = create_subscription<std_msgs::msg::Float32MultiArray>(
-        "/sim/front_observation",
+        topics_.sim_front_observation,
         rclcpp::QoS(10),
         [this](std_msgs::msg::Float32MultiArray::SharedPtr msg) {
           if (msg->data.size() < 3) {
@@ -46,7 +47,7 @@ class FrontNodeCpp final : public rclcpp::Node {
           has_injected_ = true;
         });
     camera_health_sub_ = create_subscription<std_msgs::msg::UInt8>(
-        "/camera/front/health",
+        RuntimeTopics::health_topic(topics_.camera_front_ns),
         rclcpp::QoS(5),
         [this](std_msgs::msg::UInt8::SharedPtr msg) {
           camera_health_ = msg->data;
@@ -128,6 +129,7 @@ class FrontNodeCpp final : public rclcpp::Node {
   std::string fake_mode_{"scripted"};
   bool require_camera_health_{false};
   int camera_timeout_ms_{1000};
+  RuntimeTopics topics_;
   bool has_injected_{false};
   bool has_camera_health_{false};
   uint8_t camera_health_{HEALTH_DISCONNECTED};

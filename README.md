@@ -71,7 +71,7 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 | `fusion_node_cpp` | 多模态风险融合、告警与制动门控 |
 | `mmwave_node_cpp` | fake/jsonl/ble 毫米波入口，BLE 后端待接 BlueZ D-Bus |
 | `hmi_node_cpp` | 终端 HMI |
-| `event_logger_node_cpp` | JSONL 事件记录 |
+| `event_logger_node_cpp` | SQLite/WAL 事件记录，保留 JSONL 兼容后端 |
 
 ## 5. 文档
 
@@ -81,3 +81,13 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 - 部署说明：`docs/deploy_rk3588.md`
 - 测试计划：`docs/test_plan.md`
 - 优化建议：`docs/optimization_suggestions.md`
+
+## 6. Mac 本机测试
+
+核心算法与事件存储可在 Mac 上不依赖 ROS 直接测试：
+
+```bash
+cmake -S test -B test/build
+cmake --build test/build
+ctest --test-dir test/build --output-on-failure
+```

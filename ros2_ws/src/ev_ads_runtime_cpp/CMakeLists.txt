@@ -14,6 +14,13 @@ find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(ev_ads_interfaces REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(SQLite3 REQUIRED)
+
+if(TARGET SQLite3::SQLite3)
+  set(SQLITE_TARGET SQLite3::SQLite3)
+else()
+  set(SQLITE_TARGET SQLite::SQLite3)
+endif()
 
 include_directories(include ${OpenCV_INCLUDE_DIRS})
 
@@ -26,6 +33,9 @@ set(COMMON_DEPS
 
 add_library(yolo_onnx src/yolo_onnx.cpp)
 target_link_libraries(yolo_onnx ${OpenCV_LIBS})
+
+add_library(event_store src/event_store.cpp)
+target_link_libraries(event_store ${SQLITE_TARGET})
 
 add_executable(front_node_cpp src/front_node_cpp.cpp)
 ament_target_dependencies(front_node_cpp ${COMMON_DEPS})
@@ -56,9 +66,11 @@ ament_target_dependencies(hmi_node_cpp ${COMMON_DEPS})
 
 add_executable(event_logger_node_cpp src/event_logger_node_cpp.cpp)
 ament_target_dependencies(event_logger_node_cpp ${COMMON_DEPS})
+target_link_libraries(event_logger_node_cpp event_store ${SQLITE_TARGET})
 
 install(TARGETS
   yolo_onnx
+  event_store
   front_node_cpp
   rear_node_cpp
   driver_monitor_node_cpp

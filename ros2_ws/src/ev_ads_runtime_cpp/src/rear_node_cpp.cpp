@@ -13,6 +13,7 @@
 
 #include "ev_ads_interfaces/msg/blind_spot_state.hpp"
 #include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/runtime_config.hpp"
 #include "ev_ads_runtime_cpp/yolo_onnx.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/compressed_image.hpp"
@@ -31,6 +32,52 @@ std::vector<int> to_int_vector(const std::vector<int64_t>& values) {
   return out;
 }
 
+std::vector<int64_t> to_int64_vector(const std::vector<int>& values) {
+  std::vector<int64_t> out;
+  out.reserve(values.size());
+  for (const auto value : values) {
+    out.push_back(value);
+  }
+  return out;
+}
+
+RearPerceptionConfig read_rear_config(rclcpp::Node* node) {
+  RearPerceptionConfig cfg;
+  cfg.model.class_ids = {0, 1, 2, 3, 5, 7};
+  cfg.publish_rate_hz = node->declare_parameter<double>("publish_rate_hz", cfg.publish_rate_hz);
+  cfg.mode = node->declare_parameter<std::string>("fake_mode", cfg.mode);
+  cfg.health.require_camera_health =
+      node->declare_parameter<bool>("require_camera_health", cfg.health.require_camera_health);
+  cfg.health.camera_timeout_ms =
+      node->declare_parameter<int>("camera_timeout_ms", cfg.health.camera_timeout_ms);
+  cfg.health.model_timeout_ms =
+      node->declare_parameter<int>("model_timeout_ms", cfg.health.model_timeout_ms);
+  cfg.model.path = node->declare_parameter<std::string>("model_path", cfg.model.path);
+  cfg.model.input_width = node->declare_parameter<int>("model_input_width", cfg.model.input_width);
+  cfg.model.input_height = node->declare_parameter<int>("model_input_height", cfg.model.input_height);
+  cfg.model.confidence_threshold =
+      node->declare_parameter<double>("model_confidence_threshold", cfg.model.confidence_threshold);
+  cfg.model.nms_threshold =
+      node->declare_parameter<double>("model_nms_threshold", cfg.model.nms_threshold);
+  cfg.model.has_objectness =
+      node->declare_parameter<bool>("model_has_objectness", cfg.model.has_objectness);
+  cfg.model.class_ids = to_int_vector(node->declare_parameter<std::vector<int64_t>>(
+      "model_class_ids", to_int64_vector(cfg.model.class_ids)));
+  cfg.distance_focal_px =
+      node->declare_parameter<double>("distance_focal_px", cfg.distance_focal_px);
+  cfg.present_max_m = node->declare_parameter<double>("present_max_m", cfg.present_max_m);
+  cfg.approaching_speed_mps =
+      node->declare_parameter<double>("approaching_speed_mps", cfg.approaching_speed_mps);
+  cfg.fisheye_undistort =
+      node->declare_parameter<bool>("fisheye_undistort", cfg.fisheye_undistort);
+  cfg.fisheye_k = node->declare_parameter<std::vector<double>>("fisheye_k", cfg.fisheye_k);
+  cfg.fisheye_d = node->declare_parameter<std::vector<double>>("fisheye_d", cfg.fisheye_d);
+  cfg.fisheye_balance = node->declare_parameter<double>("fisheye_balance", cfg.fisheye_balance);
+  cfg.fisheye_fov_scale =
+      node->declare_parameter<double>("fisheye_fov_scale", cfg.fisheye_fov_scale);
+  return cfg;
+}
+
 }  // 匿名命名空间
 
 struct RearObservation {
@@ -45,32 +92,12 @@ struct RearObservation {
 class RearNodeCpp final : public rclcpp::Node {
  public:
   RearNodeCpp() : Node("rear_perception_node_cpp") {
-    publish_rate_hz_ = declare_parameter<double>("publish_rate_hz", 10.0);
-    fake_mode_ = declare_parameter<std::string>("fake_mode", "scripted");
-    require_camera_health_ = declare_parameter<bool>("require_camera_health", false);
-    camera_timeout_ms_ = declare_parameter<int>("camera_timeout_ms", 1000);
-    model_path_ = declare_parameter<std::string>("model_path", "");
-    model_timeout_ms_ = declare_parameter<int>("model_timeout_ms", 500);
-    model_input_width_ = declare_parameter<int>("model_input_width", 640);
-    model_input_height_ = declare_parameter<int>("model_input_height", 640);
-    model_confidence_threshold_ = declare_parameter<double>("model_confidence_threshold", 0.35);
-    model_nms_threshold_ = declare_parameter<double>("model_nms_threshold", 0.45);
-    model_has_objectness_ = declare_parameter<bool>("model_has_objectness", false);
-    model_class_ids_ = to_int_vector(declare_parameter<std::vector<int64_t>>(
-        "model_class_ids", std::vector<int64_t>{0, 1, 2, 3, 5, 7}));
-    distance_focal_px_ = declare_parameter<double>("distance_focal_px", 700.0);
-    present_max_m_ = declare_parameter<double>("present_max_m", 10.0);
-    approaching_speed_mps_ = declare_parameter<double>("approaching_speed_mps", 1.0);
-    fisheye_undistort_ = declare_parameter<bool>("fisheye_undistort", false);
-    fisheye_k_ = declare_parameter<std::vector<double>>("fisheye_k", std::vector<double>{});
-    fisheye_d_ = declare_parameter<std::vector<double>>("fisheye_d", std::vector<double>{});
-    fisheye_balance_ = declare_parameter<double>("fisheye_balance", 0.0);
-    fisheye_fov_scale_ = declare_parameter<double>("fisheye_fov_scale", 1.0);
+    config_ = read_rear_config(this);
 
     pub_ = create_publisher<ev_ads_interfaces::msg::BlindSpotState>(
-        "/perception/blind_spot", rclcpp::QoS(10));
+        topics_.blind_spot, rclcpp::QoS(10));
     sim_sub_ = create_subscription<std_msgs::msg::Float32MultiArray>(
-        "/sim/rear_zones",
+        topics_.sim_rear_zones,
         rclcpp::QoS(10),
         [this](std_msgs::msg::Float32MultiArray::SharedPtr msg) {
           if (msg->data.size() < 6) {
@@ -83,7 +110,7 @@ class RearNodeCpp final : public rclcpp::Node {
           has_injected_ = true;
         });
     camera_health_sub_ = create_subscription<std_msgs::msg::UInt8>(
-        "/camera/rear/health",
+        RuntimeTopics::health_topic(topics_.camera_rear_ns),
         rclcpp::QoS(5),
         [this](std_msgs::msg::UInt8::SharedPtr msg) {
           camera_health_ = msg->data;
@@ -91,45 +118,45 @@ class RearNodeCpp final : public rclcpp::Node {
           has_camera_health_ = true;
         });
 
-    if (fake_mode_ == "model") {
+    if (config_.mode == "model") {
       load_model();
       image_sub_ = create_subscription<sensor_msgs::msg::CompressedImage>(
-          "/camera/rear/image_raw/compressed",
+          RuntimeTopics::image_topic(topics_.camera_rear_ns),
           rclcpp::QoS(rclcpp::KeepLast(1)).best_effort(),
           std::bind(&RearNodeCpp::image_callback, this, std::placeholders::_1));
     }
 
     t0_ = now();
     timer_ = create_wall_timer(
-        std::chrono::duration<double>(1.0 / std::max(1.0, publish_rate_hz_)),
+        std::chrono::duration<double>(1.0 / std::max(1.0, config_.publish_rate_hz)),
         std::bind(&RearNodeCpp::tick, this));
     RCLCPP_INFO(
         get_logger(),
         "后置感知节点启动，模式=%s 模型=%s",
-        fake_mode_.c_str(),
-        model_path_.empty() ? "<empty>" : model_path_.c_str());
+        config_.mode.c_str(),
+        config_.model.path.empty() ? "<empty>" : config_.model.path.c_str());
   }
 
  private:
   void load_model() {
-    if (model_path_.empty()) {
+    if (config_.model.path.empty()) {
       RCLCPP_WARN(get_logger(), "后置模型模式已启用，但 model_path 为空");
       return;
     }
     YoloOnnxDetector::Config config;
-    config.model_path = model_path_;
-    config.input_size = cv::Size(model_input_width_, model_input_height_);
-    config.confidence_threshold = static_cast<float>(model_confidence_threshold_);
-    config.nms_threshold = static_cast<float>(model_nms_threshold_);
-    config.has_objectness = model_has_objectness_;
-    config.class_allowlist = model_class_ids_;
+    config.model_path = config_.model.path;
+    config.input_size = cv::Size(config_.model.input_width, config_.model.input_height);
+    config.confidence_threshold = static_cast<float>(config_.model.confidence_threshold);
+    config.nms_threshold = static_cast<float>(config_.model.nms_threshold);
+    config.has_objectness = config_.model.has_objectness;
+    config.class_allowlist = config_.model.class_ids;
 
     std::string error;
     model_ready_ = detector_.load(config, &error);
     if (!model_ready_) {
       RCLCPP_ERROR(get_logger(), "后置 YOLO ONNX 加载失败: %s", error.c_str());
     } else {
-      RCLCPP_INFO(get_logger(), "后置 YOLO ONNX 已加载: %s", model_path_.c_str());
+      RCLCPP_INFO(get_logger(), "后置 YOLO ONNX 已加载: %s", config_.model.path.c_str());
     }
   }
 
@@ -150,10 +177,10 @@ class RearNodeCpp final : public rclcpp::Node {
   }
 
   cv::Mat undistort_if_needed(const cv::Mat& frame) {
-    if (!fisheye_undistort_) {
+    if (!config_.fisheye_undistort) {
       return frame;
     }
-    if (fisheye_k_.size() != 4 || fisheye_d_.size() != 4) {
+    if (config_.fisheye_k.size() != 4 || config_.fisheye_d.size() != 4) {
       if (!fisheye_config_warned_) {
         RCLCPP_WARN(
             get_logger(),
@@ -182,11 +209,11 @@ class RearNodeCpp final : public rclcpp::Node {
   void rebuild_fisheye_maps(const cv::Size& image_size) {
     try {
       const cv::Mat k = (cv::Mat_<double>(3, 3) <<
-          fisheye_k_[0], 0.0, fisheye_k_[2],
-          0.0, fisheye_k_[1], fisheye_k_[3],
+          config_.fisheye_k[0], 0.0, config_.fisheye_k[2],
+          0.0, config_.fisheye_k[1], config_.fisheye_k[3],
           0.0, 0.0, 1.0);
       const cv::Mat d = (cv::Mat_<double>(4, 1) <<
-          fisheye_d_[0], fisheye_d_[1], fisheye_d_[2], fisheye_d_[3]);
+          config_.fisheye_d[0], config_.fisheye_d[1], config_.fisheye_d[2], config_.fisheye_d[3]);
       cv::Mat new_k;
       cv::fisheye::estimateNewCameraMatrixForUndistortRectify(
           k,
@@ -194,9 +221,9 @@ class RearNodeCpp final : public rclcpp::Node {
           image_size,
           cv::Matx33d::eye(),
           new_k,
-          clamp(fisheye_balance_, 0.0, 1.0),
+          clamp(config_.fisheye_balance, 0.0, 1.0),
           image_size,
-          std::max(0.1, fisheye_fov_scale_));
+          std::max(0.1, config_.fisheye_fov_scale));
       cv::fisheye::initUndistortRectifyMap(
           k,
           d,
@@ -213,8 +240,8 @@ class RearNodeCpp final : public rclcpp::Node {
           "后置鱼眼去畸变映射已建立，尺寸=%dx%d balance=%.2f fov_scale=%.2f",
           image_size.width,
           image_size.height,
-          fisheye_balance_,
-          fisheye_fov_scale_);
+          config_.fisheye_balance,
+          config_.fisheye_fov_scale);
     } catch (const cv::Exception& e) {
       fisheye_maps_ready_ = false;
       RCLCPP_ERROR(get_logger(), "后置鱼眼去畸变映射建立失败: %s", e.what());
@@ -282,7 +309,7 @@ class RearNodeCpp final : public rclcpp::Node {
   double estimate_distance_m(const YoloDetection& detection) const {
     const double height = std::max(2.0f, detection.box.height);
     const double nominal_height = nominal_target_height_m(detection.class_id);
-    return clamp(distance_focal_px_ * nominal_height / height, 0.3, present_max_m_ * 1.5);
+    return clamp(config_.distance_focal_px * nominal_height / height, 0.3, config_.present_max_m * 1.5);
   }
 
   double nominal_target_height_m(int class_id) const {
@@ -305,13 +332,13 @@ class RearNodeCpp final : public rclcpp::Node {
     if (has_injected_ && (n - injected_stamp_).seconds() < 1.0) {
       return injected_;
     }
-    if (fake_mode_ == "model") {
-      if (has_model_obs_ && (n - model_stamp_).seconds() * 1000.0 <= model_timeout_ms_) {
+    if (config_.mode == "model") {
+      if (has_model_obs_ && (n - model_stamp_).seconds() * 1000.0 <= config_.health.model_timeout_ms) {
         return model_obs_;
       }
       return {};
     }
-    if (fake_mode_ == "idle") {
+    if (config_.mode == "idle") {
       return {};
     }
     const double t = std::fmod((n - t0_).seconds(), 30.0);
@@ -322,14 +349,14 @@ class RearNodeCpp final : public rclcpp::Node {
   }
 
   uint8_t camera_health() const {
-    if (!require_camera_health_) {
+    if (!config_.health.require_camera_health) {
       return HEALTH_OK;
     }
     if (!has_camera_health_) {
       return HEALTH_DISCONNECTED;
     }
     const auto age_ms = (now() - camera_health_stamp_).seconds() * 1000.0;
-    if (age_ms > camera_timeout_ms_) {
+    if (age_ms > config_.health.camera_timeout_ms) {
       return HEALTH_DISCONNECTED;
     }
     return camera_health_;
@@ -339,7 +366,7 @@ class RearNodeCpp final : public rclcpp::Node {
     if (camera_health != HEALTH_OK) {
       return camera_health;
     }
-    if (fake_mode_ != "model") {
+    if (config_.mode != "model") {
       return camera_health;
     }
     if (!model_ready_) {
@@ -349,7 +376,7 @@ class RearNodeCpp final : public rclcpp::Node {
       return HEALTH_STALE;
     }
     const auto age_ms = (now() - model_stamp_).seconds() * 1000.0;
-    if (age_ms > model_timeout_ms_) {
+    if (age_ms > config_.health.model_timeout_ms) {
       return HEALTH_STALE;
     }
     return HEALTH_OK;
@@ -358,9 +385,12 @@ class RearNodeCpp final : public rclcpp::Node {
   void tick() {
     const auto obs = observe();
     const uint8_t health = perception_health(camera_health());
-    const uint8_t ls = bad_health(health) ? ZONE_CLEAR : zone_state(obs.ld, obs.lv, approaching_speed_mps_, present_max_m_);
-    const uint8_t cs = bad_health(health) ? ZONE_CLEAR : zone_state(obs.cd, obs.cv, approaching_speed_mps_, present_max_m_);
-    const uint8_t rs = bad_health(health) ? ZONE_CLEAR : zone_state(obs.rd, obs.rv, approaching_speed_mps_, present_max_m_);
+    const uint8_t ls = bad_health(health) ? ZONE_CLEAR :
+        zone_state(obs.ld, obs.lv, config_.approaching_speed_mps, config_.present_max_m);
+    const uint8_t cs = bad_health(health) ? ZONE_CLEAR :
+        zone_state(obs.cd, obs.cv, config_.approaching_speed_mps, config_.present_max_m);
+    const uint8_t rs = bad_health(health) ? ZONE_CLEAR :
+        zone_state(obs.rd, obs.rv, config_.approaching_speed_mps, config_.present_max_m);
     const double score = bad_health(health) ? 0.0 : aggregate_rear_risk(ls, cs, rs);
 
     ev_ads_interfaces::msg::BlindSpotState msg;
@@ -380,26 +410,8 @@ class RearNodeCpp final : public rclcpp::Node {
     pub_->publish(msg);
   }
 
-  double publish_rate_hz_{10.0};
-  std::string fake_mode_{"scripted"};
-  bool require_camera_health_{false};
-  int camera_timeout_ms_{1000};
-  std::string model_path_;
-  int model_timeout_ms_{500};
-  int model_input_width_{640};
-  int model_input_height_{640};
-  double model_confidence_threshold_{0.35};
-  double model_nms_threshold_{0.45};
-  bool model_has_objectness_{false};
-  std::vector<int> model_class_ids_;
-  double distance_focal_px_{700.0};
-  double present_max_m_{10.0};
-  double approaching_speed_mps_{1.0};
-  bool fisheye_undistort_{false};
-  std::vector<double> fisheye_k_;
-  std::vector<double> fisheye_d_;
-  double fisheye_balance_{0.0};
-  double fisheye_fov_scale_{1.0};
+  RuntimeTopics topics_;
+  RearPerceptionConfig config_;
   bool model_ready_{false};
   bool has_model_obs_{false};
   bool has_injected_{false};

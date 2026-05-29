@@ -24,6 +24,7 @@
 
 #include "ev_ads_interfaces/msg/vehicle_motion.hpp"
 #include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/topics.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 
@@ -392,7 +393,7 @@ class ImuNodeCpp final : public rclcpp::Node {
     mount_ = std::make_unique<MountingTransform>(mount_rpy_deg_);
 
     pub_motion_ = create_publisher<ev_ads_interfaces::msg::VehicleMotion>(
-        "/vehicle/motion", rclcpp::QoS(rclcpp::KeepLast(20)).reliable());
+        topics_.vehicle_motion, rclcpp::QoS(rclcpp::KeepLast(20)).reliable());
     if (publish_imu_) {
       pub_imu_ = create_publisher<sensor_msgs::msg::Imu>("/imu/data", rclcpp::QoS(20));
     }
@@ -508,6 +509,7 @@ class ImuNodeCpp final : public rclcpp::Node {
   double last_accel_norm_{-1.0};
   double last_sample_s_{-1.0};
   rclcpp::Publisher<ev_ads_interfaces::msg::VehicleMotion>::SharedPtr pub_motion_;
+  RuntimeTopics topics_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr pub_imu_;
 };
 

@@ -12,6 +12,7 @@
 
 #include "ev_ads_interfaces/msg/driver_state.hpp"
 #include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/runtime_config.hpp"
 #include "ev_ads_runtime_cpp/yolo_onnx.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/compressed_image.hpp"
@@ -28,6 +29,69 @@ std::vector<int> to_int_vector(const std::vector<int64_t>& values) {
     out.push_back(static_cast<int>(value));
   }
   return out;
+}
+
+std::vector<int64_t> to_int64_vector(const std::vector<int>& values) {
+  std::vector<int64_t> out;
+  out.reserve(values.size());
+  for (const auto value : values) {
+    out.push_back(value);
+  }
+  return out;
+}
+
+DriverMonitorConfig read_driver_config(rclcpp::Node* node) {
+  DriverMonitorConfig cfg;
+  cfg.publish_rate_hz = node->declare_parameter<double>("publish_rate_hz", cfg.publish_rate_hz);
+  cfg.mode = node->declare_parameter<std::string>("fake_mode", cfg.mode);
+  cfg.health.require_camera_health =
+      node->declare_parameter<bool>("require_camera_health", cfg.health.require_camera_health);
+  cfg.health.camera_timeout_ms =
+      node->declare_parameter<int>("camera_timeout_ms", cfg.health.camera_timeout_ms);
+  cfg.health.model_timeout_ms =
+      node->declare_parameter<int>("model_timeout_ms", cfg.health.model_timeout_ms);
+  cfg.dms_model.path = node->declare_parameter<std::string>("model_path", cfg.dms_model.path);
+  cfg.face_model_path = node->declare_parameter<std::string>("face_model_path", cfg.face_model_path);
+  cfg.dms_model.input_width =
+      node->declare_parameter<int>("model_input_width", cfg.dms_model.input_width);
+  cfg.dms_model.input_height =
+      node->declare_parameter<int>("model_input_height", cfg.dms_model.input_height);
+  cfg.dms_model.confidence_threshold =
+      node->declare_parameter<double>("model_confidence_threshold", cfg.dms_model.confidence_threshold);
+  cfg.dms_model.nms_threshold =
+      node->declare_parameter<double>("model_nms_threshold", cfg.dms_model.nms_threshold);
+  cfg.dms_model.has_objectness =
+      node->declare_parameter<bool>("model_has_objectness", cfg.dms_model.has_objectness);
+  cfg.face_input_width = node->declare_parameter<int>("face_input_width", cfg.face_input_width);
+  cfg.face_input_height = node->declare_parameter<int>("face_input_height", cfg.face_input_height);
+  cfg.face_score_threshold =
+      node->declare_parameter<double>("face_score_threshold", cfg.face_score_threshold);
+  cfg.face_nms_threshold =
+      node->declare_parameter<double>("face_nms_threshold", cfg.face_nms_threshold);
+  cfg.face_top_k = node->declare_parameter<int>("face_top_k", cfg.face_top_k);
+  cfg.face_absence_warning_ms =
+      node->declare_parameter<int>("face_absence_warning_ms", cfg.face_absence_warning_ms);
+  cfg.face_absence_score =
+      node->declare_parameter<double>("face_absence_score", cfg.face_absence_score);
+  cfg.dms_model.class_ids = to_int_vector(node->declare_parameter<std::vector<int64_t>>(
+      "model_class_ids", to_int64_vector(cfg.dms_model.class_ids)));
+  cfg.face_class_ids = to_int_vector(node->declare_parameter<std::vector<int64_t>>(
+      "face_class_ids", to_int64_vector(cfg.face_class_ids)));
+  cfg.open_eye_class_ids = to_int_vector(node->declare_parameter<std::vector<int64_t>>(
+      "open_eye_class_ids", to_int64_vector(cfg.open_eye_class_ids)));
+  cfg.half_eye_class_ids = to_int_vector(node->declare_parameter<std::vector<int64_t>>(
+      "half_eye_class_ids", to_int64_vector(cfg.half_eye_class_ids)));
+  cfg.closed_eye_class_ids = to_int_vector(node->declare_parameter<std::vector<int64_t>>(
+      "closed_eye_class_ids", to_int64_vector(cfg.closed_eye_class_ids)));
+  cfg.yawn_class_ids = to_int_vector(node->declare_parameter<std::vector<int64_t>>(
+      "yawn_class_ids", to_int64_vector(cfg.yawn_class_ids)));
+  cfg.phone_class_ids = to_int_vector(node->declare_parameter<std::vector<int64_t>>(
+      "phone_class_ids", to_int64_vector(cfg.phone_class_ids)));
+  cfg.distracted_class_ids = to_int_vector(node->declare_parameter<std::vector<int64_t>>(
+      "distracted_class_ids", to_int64_vector(cfg.distracted_class_ids)));
+  cfg.fatigue_class_ids = to_int_vector(node->declare_parameter<std::vector<int64_t>>(
+      "fatigue_class_ids", to_int64_vector(cfg.fatigue_class_ids)));
+  return cfg;
 }
 
 bool contains_id(const std::vector<int>& ids, int class_id) {
@@ -82,48 +146,12 @@ struct DriverObservation {
 class DriverMonitorNodeCpp final : public rclcpp::Node {
  public:
   DriverMonitorNodeCpp() : Node("driver_monitor_node_cpp") {
-    publish_rate_hz_ = declare_parameter<double>("publish_rate_hz", 10.0);
-    fake_mode_ = declare_parameter<std::string>("fake_mode", "scripted");
-    require_camera_health_ = declare_parameter<bool>("require_camera_health", false);
-    camera_timeout_ms_ = declare_parameter<int>("camera_timeout_ms", 1000);
-    model_path_ = declare_parameter<std::string>("model_path", "");
-    face_model_path_ = declare_parameter<std::string>("face_model_path", "");
-    model_timeout_ms_ = declare_parameter<int>("model_timeout_ms", 500);
-    model_input_width_ = declare_parameter<int>("model_input_width", 640);
-    model_input_height_ = declare_parameter<int>("model_input_height", 640);
-    model_confidence_threshold_ = declare_parameter<double>("model_confidence_threshold", 0.35);
-    model_nms_threshold_ = declare_parameter<double>("model_nms_threshold", 0.45);
-    model_has_objectness_ = declare_parameter<bool>("model_has_objectness", false);
-    face_input_width_ = declare_parameter<int>("face_input_width", 320);
-    face_input_height_ = declare_parameter<int>("face_input_height", 320);
-    face_score_threshold_ = declare_parameter<double>("face_score_threshold", 0.60);
-    face_nms_threshold_ = declare_parameter<double>("face_nms_threshold", 0.30);
-    face_top_k_ = declare_parameter<int>("face_top_k", 5000);
-    face_absence_warning_ms_ = declare_parameter<int>("face_absence_warning_ms", 1500);
-    face_absence_score_ = declare_parameter<double>("face_absence_score", 0.65);
-    model_class_ids_ = to_int_vector(declare_parameter<std::vector<int64_t>>(
-        "model_class_ids", std::vector<int64_t>{}));
-    face_class_ids_ = to_int_vector(declare_parameter<std::vector<int64_t>>(
-        "face_class_ids", std::vector<int64_t>{}));
-    half_eye_class_ids_ = to_int_vector(declare_parameter<std::vector<int64_t>>(
-        "half_eye_class_ids", std::vector<int64_t>{1}));
-    closed_eye_class_ids_ = to_int_vector(declare_parameter<std::vector<int64_t>>(
-        "closed_eye_class_ids", std::vector<int64_t>{2}));
-    open_eye_class_ids_ = to_int_vector(declare_parameter<std::vector<int64_t>>(
-        "open_eye_class_ids", std::vector<int64_t>{0}));
-    yawn_class_ids_ = to_int_vector(declare_parameter<std::vector<int64_t>>(
-        "yawn_class_ids", std::vector<int64_t>{3}));
-    phone_class_ids_ = to_int_vector(declare_parameter<std::vector<int64_t>>(
-        "phone_class_ids", std::vector<int64_t>{5}));
-    distracted_class_ids_ = to_int_vector(declare_parameter<std::vector<int64_t>>(
-        "distracted_class_ids", std::vector<int64_t>{6}));
-    fatigue_class_ids_ = to_int_vector(declare_parameter<std::vector<int64_t>>(
-        "fatigue_class_ids", std::vector<int64_t>{}));
+    config_ = read_driver_config(this);
 
     pub_ = create_publisher<ev_ads_interfaces::msg::DriverState>(
-        "/perception/driver_state", rclcpp::QoS(10));
+        topics_.driver_state, rclcpp::QoS(10));
     sim_sub_ = create_subscription<std_msgs::msg::Float32MultiArray>(
-        "/sim/driver_observation",
+        topics_.sim_driver_observation,
         rclcpp::QoS(10),
         [this](std_msgs::msg::Float32MultiArray::SharedPtr msg) {
           if (msg->data.size() < 5) {
@@ -139,7 +167,7 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
           has_injected_ = true;
         });
     camera_health_sub_ = create_subscription<std_msgs::msg::UInt8>(
-        "/camera/driver/health",
+        RuntimeTopics::health_topic(topics_.camera_driver_ns),
         rclcpp::QoS(5),
         [this](std_msgs::msg::UInt8::SharedPtr msg) {
           camera_health_ = msg->data;
@@ -147,24 +175,24 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
           has_camera_health_ = true;
         });
 
-    if (fake_mode_ == "model") {
+    if (config_.mode == "model") {
       load_models();
       image_sub_ = create_subscription<sensor_msgs::msg::CompressedImage>(
-          "/camera/driver/image_raw/compressed",
+          RuntimeTopics::image_topic(topics_.camera_driver_ns),
           rclcpp::QoS(rclcpp::KeepLast(1)).best_effort(),
           std::bind(&DriverMonitorNodeCpp::image_callback, this, std::placeholders::_1));
     }
 
     t0_ = now();
     timer_ = create_wall_timer(
-        std::chrono::duration<double>(1.0 / std::max(1.0, publish_rate_hz_)),
+        std::chrono::duration<double>(1.0 / std::max(1.0, config_.publish_rate_hz)),
         std::bind(&DriverMonitorNodeCpp::tick, this));
     RCLCPP_INFO(
         get_logger(),
         "驾驶员监测节点启动，模式=%s DMS模型=%s 人脸模型=%s",
-        fake_mode_.c_str(),
-        model_path_.empty() ? "<empty>" : model_path_.c_str(),
-        face_model_path_.empty() ? "<empty>" : face_model_path_.c_str());
+        config_.mode.c_str(),
+        config_.dms_model.path.empty() ? "<empty>" : config_.dms_model.path.c_str(),
+        config_.face_model_path.empty() ? "<empty>" : config_.face_model_path.c_str());
   }
 
  private:
@@ -177,47 +205,47 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
   }
 
   void load_face_model() {
-    if (face_model_path_.empty()) {
+    if (config_.face_model_path.empty()) {
       RCLCPP_WARN(get_logger(), "YuNet 人脸模型路径为空，将只使用 DMS YOLO 线索");
       return;
     }
     try {
       face_detector_ = cv::FaceDetectorYN::create(
-          face_model_path_,
+          config_.face_model_path,
           "",
-          cv::Size(face_input_width_, face_input_height_),
-          static_cast<float>(face_score_threshold_),
-          static_cast<float>(face_nms_threshold_),
-          face_top_k_);
+          cv::Size(config_.face_input_width, config_.face_input_height),
+          static_cast<float>(config_.face_score_threshold),
+          static_cast<float>(config_.face_nms_threshold),
+          config_.face_top_k);
       face_ready_ = !face_detector_.empty();
     } catch (const cv::Exception& e) {
       RCLCPP_ERROR(get_logger(), "YuNet 人脸模型加载失败: %s", e.what());
       face_ready_ = false;
     }
     if (face_ready_) {
-      RCLCPP_INFO(get_logger(), "YuNet 人脸模型已加载: %s", face_model_path_.c_str());
+      RCLCPP_INFO(get_logger(), "YuNet 人脸模型已加载: %s", config_.face_model_path.c_str());
     }
   }
 
   void load_dms_model() {
-    if (model_path_.empty()) {
+    if (config_.dms_model.path.empty()) {
       RCLCPP_WARN(get_logger(), "DMS YOLO 模型路径为空，将只使用 YuNet 人脸线索");
       return;
     }
     YoloOnnxDetector::Config config;
-    config.model_path = model_path_;
-    config.input_size = cv::Size(model_input_width_, model_input_height_);
-    config.confidence_threshold = static_cast<float>(model_confidence_threshold_);
-    config.nms_threshold = static_cast<float>(model_nms_threshold_);
-    config.has_objectness = model_has_objectness_;
-    config.class_allowlist = model_class_ids_;
+    config.model_path = config_.dms_model.path;
+    config.input_size = cv::Size(config_.dms_model.input_width, config_.dms_model.input_height);
+    config.confidence_threshold = static_cast<float>(config_.dms_model.confidence_threshold);
+    config.nms_threshold = static_cast<float>(config_.dms_model.nms_threshold);
+    config.has_objectness = config_.dms_model.has_objectness;
+    config.class_allowlist = config_.dms_model.class_ids;
 
     std::string error;
     dms_ready_ = dms_detector_.load(config, &error);
     if (!dms_ready_) {
       RCLCPP_ERROR(get_logger(), "驾驶员 YOLO ONNX 加载失败: %s", error.c_str());
     } else {
-      RCLCPP_INFO(get_logger(), "驾驶员 YOLO ONNX 已加载: %s", model_path_.c_str());
+      RCLCPP_INFO(get_logger(), "驾驶员 YOLO ONNX 已加载: %s", config_.dms_model.path.c_str());
     }
   }
 
@@ -249,8 +277,8 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
     try {
       cv::Mat face_input;
       const cv::Size input_size(
-          std::max(32, face_input_width_),
-          std::max(32, face_input_height_));
+          std::max(32, config_.face_input_width),
+          std::max(32, config_.face_input_height));
       const double scale_x = static_cast<double>(frame.cols) / input_size.width;
       const double scale_y = static_cast<double>(frame.rows) / input_size.height;
       if (frame.size() == input_size) {
@@ -314,14 +342,14 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
       const cv::Size& image_size,
       const FaceObservation& face_obs) const {
     DriverObservation obs;
-    const YoloDetection* yolo_face = best_detection_for(detections, face_class_ids_);
-    const double closed_eye = max_confidence_for(detections, closed_eye_class_ids_);
-    const double half_eye = max_confidence_for(detections, half_eye_class_ids_);
-    const double open_eye = max_confidence_for(detections, open_eye_class_ids_);
-    const double yawn = max_confidence_for(detections, yawn_class_ids_);
-    const double phone = max_confidence_for(detections, phone_class_ids_);
-    const double distracted = max_confidence_for(detections, distracted_class_ids_);
-    const double fatigue = max_confidence_for(detections, fatigue_class_ids_);
+    const YoloDetection* yolo_face = best_detection_for(detections, config_.face_class_ids);
+    const double closed_eye = max_confidence_for(detections, config_.closed_eye_class_ids);
+    const double half_eye = max_confidence_for(detections, config_.half_eye_class_ids);
+    const double open_eye = max_confidence_for(detections, config_.open_eye_class_ids);
+    const double yawn = max_confidence_for(detections, config_.yawn_class_ids);
+    const double phone = max_confidence_for(detections, config_.phone_class_ids);
+    const double distracted = max_confidence_for(detections, config_.distracted_class_ids);
+    const double fatigue = max_confidence_for(detections, config_.fatigue_class_ids);
 
     const bool yolo_facial_evidence =
         yolo_face != nullptr || closed_eye > 0.0 || half_eye > 0.0 || open_eye > 0.0 || yawn > 0.0;
@@ -391,7 +419,7 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
       face_missing_since_ = n;
     }
     const double missing_ms = (n - face_missing_since_).seconds() * 1000.0;
-    if (missing_ms < face_absence_warning_ms_) {
+    if (missing_ms < config_.face_absence_warning_ms) {
       obs->face_visible = FACE_UNKNOWN;
       obs->confidence = std::max(obs->confidence, 0.30);
     } else {
@@ -404,13 +432,13 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
     if (has_injected_ && (n - injected_stamp_).seconds() < 1.0) {
       return injected_;
     }
-    if (fake_mode_ == "model") {
-      if (has_model_obs_ && (n - model_stamp_).seconds() * 1000.0 <= model_timeout_ms_) {
+    if (config_.mode == "model") {
+      if (has_model_obs_ && (n - model_stamp_).seconds() * 1000.0 <= config_.health.model_timeout_ms) {
         return model_obs_;
       }
       return {};
     }
-    if (fake_mode_ == "idle") {
+    if (config_.mode == "idle") {
       return {FACE_YES, 0.05, 0.0, 0.0, 0.0, 1.0};
     }
     const double t = std::fmod((n - t0_).seconds(), 30.0);
@@ -421,14 +449,14 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
   }
 
   uint8_t camera_health() const {
-    if (!require_camera_health_) {
+    if (!config_.health.require_camera_health) {
       return HEALTH_OK;
     }
     if (!has_camera_health_) {
       return HEALTH_DISCONNECTED;
     }
     const auto age_ms = (now() - camera_health_stamp_).seconds() * 1000.0;
-    if (age_ms > camera_timeout_ms_) {
+    if (age_ms > config_.health.camera_timeout_ms) {
       return HEALTH_DISCONNECTED;
     }
     return camera_health_;
@@ -438,7 +466,7 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
     if (camera_health != HEALTH_OK) {
       return camera_health;
     }
-    if (fake_mode_ != "model") {
+    if (config_.mode != "model") {
       return camera_health;
     }
     if (!pipeline_ready()) {
@@ -448,7 +476,7 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
       return HEALTH_STALE;
     }
     const auto age_ms = (now() - model_stamp_).seconds() * 1000.0;
-    if (age_ms > model_timeout_ms_) {
+    if (age_ms > config_.health.model_timeout_ms) {
       return HEALTH_STALE;
     }
     return HEALTH_OK;
@@ -460,7 +488,7 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
     double score = 0.0;
     if (!bad_health(health)) {
       if (obs.face_visible == FACE_NO) {
-        score = clamp(face_absence_score_, 0.0, 1.0);
+        score = clamp(config_.face_absence_score, 0.0, 1.0);
       } else {
         score = fatigue_score(obs.face_visible, obs.eye, obs.pitch, obs.yaw, obs.distraction);
       }
@@ -480,34 +508,8 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
     pub_->publish(msg);
   }
 
-  double publish_rate_hz_{10.0};
-  std::string fake_mode_{"scripted"};
-  bool require_camera_health_{false};
-  int camera_timeout_ms_{1000};
-  std::string model_path_;
-  std::string face_model_path_;
-  int model_timeout_ms_{500};
-  int model_input_width_{640};
-  int model_input_height_{640};
-  double model_confidence_threshold_{0.35};
-  double model_nms_threshold_{0.45};
-  bool model_has_objectness_{false};
-  int face_input_width_{320};
-  int face_input_height_{320};
-  double face_score_threshold_{0.60};
-  double face_nms_threshold_{0.30};
-  int face_top_k_{5000};
-  int face_absence_warning_ms_{1500};
-  double face_absence_score_{0.65};
-  std::vector<int> model_class_ids_;
-  std::vector<int> face_class_ids_;
-  std::vector<int> half_eye_class_ids_;
-  std::vector<int> closed_eye_class_ids_;
-  std::vector<int> open_eye_class_ids_;
-  std::vector<int> yawn_class_ids_;
-  std::vector<int> phone_class_ids_;
-  std::vector<int> distracted_class_ids_;
-  std::vector<int> fatigue_class_ids_;
+  RuntimeTopics topics_;
+  DriverMonitorConfig config_;
   bool face_ready_{false};
   bool dms_ready_{false};
   bool has_model_obs_{false};
