@@ -3,6 +3,15 @@ cmake_minimum_required(VERSION 3.16)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   project(ev_ads_mac_tests LANGUAGES CXX)
   enable_testing()
+  include(FetchContent)
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  )
+  FetchContent_MakeAvailable(googletest)
+  include(GoogleTest)
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -38,21 +47,19 @@ target_include_directories(ev_ads_yolo_for_test PUBLIC
 target_link_libraries(ev_ads_yolo_for_test PUBLIC ${OpenCV_LIBS})
 
 add_executable(test_risk_math_and_fusion test_risk_math_and_fusion.cpp)
-target_link_libraries(test_risk_math_and_fusion PRIVATE ev_ads_core_for_test)
+target_link_libraries(test_risk_math_and_fusion PRIVATE ev_ads_core_for_test GTest::gtest_main)
+gtest_discover_tests(test_risk_math_and_fusion)
 
 add_executable(test_event_store test_event_store.cpp)
-target_link_libraries(test_event_store PRIVATE ev_ads_core_for_test)
+target_link_libraries(test_event_store PRIVATE ev_ads_core_for_test GTest::gtest_main)
+gtest_discover_tests(test_event_store)
 
 add_executable(test_model_loading test_model_loading.cpp)
 target_include_directories(test_model_loading PRIVATE ${OpenCV_INCLUDE_DIRS})
-target_link_libraries(test_model_loading PRIVATE ev_ads_yolo_for_test ${OpenCV_LIBS})
+target_compile_definitions(test_model_loading PRIVATE EV_ADS_PROJECT_ROOT="${CMAKE_CURRENT_LIST_DIR}/..")
+target_link_libraries(test_model_loading PRIVATE ev_ads_yolo_for_test ${OpenCV_LIBS} GTest::gtest_main)
+gtest_discover_tests(test_model_loading)
 
-add_test(NAME risk_math_and_fusion COMMAND test_risk_math_and_fusion)
-add_test(NAME event_store COMMAND test_event_store)
-add_test(
-  NAME model_loading
-  COMMAND test_model_loading "${CMAKE_CURRENT_LIST_DIR}/.."
-)
 add_test(
   NAME project_checks
   COMMAND

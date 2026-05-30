@@ -52,7 +52,7 @@ DMS：
 
 ## 4. P2：工程化
 
-- 已新增 Mac CMake 测试目录 `test/`，覆盖 `risk_math.hpp`、`FusionCore` 和 `EventStore`；后续再接入 gtest 与 `onnx_yolo_detector` 输出解析用例。
+- 已新增 Mac CMake 测试目录 `test/`，根 CMake 通过 `FetchContent` 自动下载 GoogleTest，当前已覆盖 `risk_math.hpp`、`FusionCore`、`EventStore` 和 ONNX 模型加载；后续可继续补 `onnx_yolo_detector` 多输出形状、NMS 和类别映射用例。
 - 增加 diagnostics topic，报告延迟、频率、health。
 - 增加模型版本记录：文件 hash、输入尺寸、类别表、阈值、测试集结果、许可证。
 - 高频事件默认写 SQLite/WAL 并批量提交；JSONL 仅用于兼容、调试和小流量回放。

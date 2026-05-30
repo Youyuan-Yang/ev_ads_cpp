@@ -145,6 +145,40 @@ def check_runtime_sources() -> None:
         if not (ROOT / rel).exists():
             fail(f"缺少项目级测试/核心文件: {rel}")
 
+    root_cmake = read_text("CMakeLists.txt")
+    for needle in [
+        "include(FetchContent)",
+        "FetchContent_Declare(",
+        "googletest",
+        "FetchContent_MakeAvailable(googletest)",
+        "include(GoogleTest)",
+        "add_subdirectory(test)",
+    ]:
+        if needle not in root_cmake:
+            fail(f"根 CMake 未自动下载/配置 GoogleTest: {needle}")
+
+    test_cmake = read_text("test/CMakeLists.txt")
+    for needle in [
+        "GTest::gtest_main",
+        "gtest_discover_tests(test_risk_math_and_fusion)",
+        "gtest_discover_tests(test_event_store)",
+        "gtest_discover_tests(test_model_loading)",
+        "EV_ADS_PROJECT_ROOT",
+    ]:
+        if needle not in test_cmake:
+            fail(f"测试 CMake 未按 GTest 配置: {needle}")
+
+    for rel in [
+        "test/test_risk_math_and_fusion.cpp",
+        "test/test_event_store.cpp",
+        "test/test_model_loading.cpp",
+    ]:
+        source = read_text(rel)
+        if "#include <gtest/gtest.h>" not in source or "TEST(" not in source:
+            fail(f"C++ 测试未改为 GoogleTest 写法: {rel}")
+        if "#include <cassert>" in source or "assert(" in source:
+            fail(f"C++ 测试仍包含 assert 写法: {rel}")
+
     cmake = read_text("ros2_ws/src/ev_ads_runtime_cpp/CMakeLists.txt")
     for needle in [
         "find_package(SQLite3 REQUIRED)",
@@ -206,13 +240,15 @@ def check_docs() -> None:
     readme = read_text("README.md")
     if "cmake -S . -B build/mac" not in readme:
         fail("README 未写根目录统一测试命令")
+    if "GoogleTest" not in readme or "FetchContent" not in readme:
+        fail("README 未说明根 CMake 自动下载 GoogleTest")
     if "SQLite/WAL" not in readme:
         fail("README 未说明 SQLite/WAL 事件记录")
     if "XML/YAML" in readme or ".yaml" in readme or ".toml" in readme:
         fail("README 仍描述多配置格式")
 
     test_plan = read_text("docs/test_plan.md")
-    for needle in ["cmake -S . -B build/mac", "events.sqlite", "model_loading", "XML-only"]:
+    for needle in ["cmake -S . -B build/mac", "events.sqlite", "GoogleTest", "ModelLoading", "XML-only"]:
         if needle not in test_plan:
             fail(f"测试计划未覆盖: {needle}")
 

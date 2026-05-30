@@ -164,7 +164,7 @@ ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
 - 新增 `topics.hpp` 与 `runtime_config.hpp`：集中话题名和节点配置，减少节点内硬编码。
 - 新增 `risk_fusion_core.hpp`：将融合算法从 ROS 节点抽离为可单测核心类，`risk_fusion_node` 只负责 ROS 消息桥接。
 - 新增 `event_store.hpp/cpp`：封装 SQLite/JSONL 事件存储，默认 WAL + 批量提交，降低 JSONL 高频 flush 性能风险。
-- 新增根目录级 `CMakeLists.txt` 与 `test/`：Mac 上从项目根目录统一编译测试 `common`、`FusionCore`、`EventStore`、ONNX 模型加载和项目配置。
+- 新增根目录级 `CMakeLists.txt` 与 `test/`：根 CMake 通过 `FetchContent` 自动下载 GoogleTest，Mac 上从项目根目录统一编译测试 `domain_types/risk_math`、`FusionCore`、`EventStore`、ONNX 模型加载和项目配置。
 - 将旧 Python launch 改为 XML launch。
 - 将运行参数统一收敛到根目录 `config/ev_ads_runtime.launch.xml`，删除项目自有 YAML/TOML 配置，场景文件统一放入 `config/scenarios/`。
 - 删除非测试 Python 运行包、`apps/`、`tools/`。
@@ -177,6 +177,7 @@ ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
 - 修改 `driver_attention_node`：新增 YuNet 人脸检测、DMS YOLO 类别映射、半闭眼证据、人脸连续消失缓冲和组合风险输出。
 - 将 SafeDrive 类别 ID、YuNet 阈值和人脸消失风险参数写入 `ev_ads_runtime.launch.xml`。
 - 记录模型来源、hash 和本机 OpenCV 加载测试结果。
+- 将原 `assert + main` 测试改为 GoogleTest `TEST(...)` 写法，并通过 `gtest_discover_tests` 接入 CTest。
 
 ## 8. 自检结果
 
@@ -192,9 +193,9 @@ ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
 - XML launch 和 XML 场景文件已通过解析检查。
 - 项目自有运行配置已统一为 XML，不再保留 YAML/TOML 配置文件。
 - Mac 本机根目录级 CMake/CTest 已通过：
-  - `risk_math_and_fusion`
-  - `event_store`
-  - `model_loading`
+  - `DomainTypeConversion.*`、`RiskMath.*`、`FusionCore.*`
+  - `EventStore.*`、`EventStoreJson.*`
+  - `ModelLoading.*`
   - `project_checks`
 
 统一命令：

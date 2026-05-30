@@ -1,8 +1,7 @@
-#include <cassert>
 #include <filesystem>
-#include <iostream>
 #include <string>
 
+#include <gtest/gtest.h>
 #include <opencv2/dnn.hpp>
 #include <opencv2/objdetect.hpp>
 #include <opencv2/opencv.hpp>
@@ -13,24 +12,36 @@ using ev_ads_runtime_cpp::YoloOnnxDetector;
 
 namespace {
 
-std::filesystem::path require_file(const std::filesystem::path& root, const std::string& relative) {
-  const auto path = root / relative;
-  assert(std::filesystem::exists(path));
-  assert(std::filesystem::file_size(path) > 1024);
+const std::filesystem::path kProjectRoot = EV_ADS_PROJECT_ROOT;
+
+std::filesystem::path model_path(const std::string& relative) {
+  const auto path = kProjectRoot / relative;
+  if (!std::filesystem::exists(path)) {
+    ADD_FAILURE() << "模型文件不存在: " << path;
+    return path;
+  }
+  std::error_code ec;
+  const auto size = std::filesystem::file_size(path, ec);
+  if (ec) {
+    ADD_FAILURE() << "读取模型大小失败: " << path << " " << ec.message();
+    return path;
+  }
+  EXPECT_GT(size, 1024u) << path;
   return path;
 }
 
-void test_yunet(const std::filesystem::path& root) {
-  const auto path = require_file(root, "models/onnx/driver_face_yunet.onnx");
+TEST(ModelLoading, LoadsYuNetFaceDetector) {
+  const auto path = model_path("models/onnx/driver_face_yunet.onnx");
   auto detector = cv::FaceDetectorYN::create(path.string(), "", cv::Size(320, 320), 0.60f, 0.30f, 5000);
+  ASSERT_FALSE(detector.empty());
   cv::Mat blank(320, 320, CV_8UC3, cv::Scalar(0, 0, 0));
   cv::Mat faces;
   detector->detect(blank, faces);
-  assert(faces.rows == 0);
+  EXPECT_EQ(faces.rows, 0);
 }
 
-void test_yolo_model(const std::filesystem::path& root, const std::string& relative) {
-  const auto path = require_file(root, relative);
+void expect_yolo_loads_and_returns_empty_on_blank(const std::string& relative) {
+  const auto path = model_path(relative);
   YoloOnnxDetector::Config config;
   config.model_path = path.string();
   config.input_size = cv::Size(640, 640);
@@ -39,30 +50,31 @@ void test_yolo_model(const std::filesystem::path& root, const std::string& relat
   config.has_objectness = false;
   std::string error;
   YoloOnnxDetector detector;
-  assert(detector.load(config, &error));
+  ASSERT_TRUE(detector.load(config, &error)) << error;
   cv::Mat blank(640, 640, CV_8UC3, cv::Scalar(0, 0, 0));
   const auto detections = detector.infer(blank);
-  assert(detections.empty());
+  EXPECT_TRUE(detections.empty());
 }
 
-void test_direct_opencv_load(const std::filesystem::path& root, const std::string& relative) {
-  const auto path = require_file(root, relative);
+void expect_direct_opencv_loads(const std::string& relative) {
+  const auto path = model_path(relative);
   auto net = cv::dnn::readNetFromONNX(path.string());
-  assert(!net.empty());
+  ASSERT_FALSE(net.empty());
   const auto names = net.getUnconnectedOutLayersNames();
-  assert(!names.empty());
+  EXPECT_FALSE(names.empty());
+}
+
+TEST(ModelLoading, LoadsDriverDmsYoloThroughProjectDetector) {
+  expect_yolo_loads_and_returns_empty_on_blank("models/onnx/driver_dms_yolo.onnx");
+}
+
+TEST(ModelLoading, LoadsRearYoloThroughProjectDetector) {
+  expect_yolo_loads_and_returns_empty_on_blank("models/onnx/rear_yolo.onnx");
+}
+
+TEST(ModelLoading, DirectOpenCvLoadsDmsAndRearOnnx) {
+  expect_direct_opencv_loads("models/onnx/driver_dms_yolo.onnx");
+  expect_direct_opencv_loads("models/onnx/rear_yolo.onnx");
 }
 
 }  // namespace
-
-int main(int argc, char** argv) {
-  assert(argc == 2);
-  const std::filesystem::path root(argv[1]);
-  test_yunet(root);
-  test_yolo_model(root, "models/onnx/driver_dms_yolo.onnx");
-  test_yolo_model(root, "models/onnx/rear_yolo.onnx");
-  test_direct_opencv_load(root, "models/onnx/driver_dms_yolo.onnx");
-  test_direct_opencv_load(root, "models/onnx/rear_yolo.onnx");
-  std::cout << "test_model_loading ok\n";
-  return 0;
-}

@@ -94,9 +94,11 @@ cmake --build build/mac
 ctest --test-dir build/mac --output-on-failure
 ```
 
-当前根级测试包含：
+根目录 `CMakeLists.txt` 使用 `FetchContent` 自动下载并配置 GoogleTest；第一次配置需要能访问 GitHub，之后会复用 `build/mac/_deps` 中的源码。
 
-- `risk_math_and_fusion`：枚举边界、风险数学、融合 L3 门控。
-- `event_store`：SQLite/WAL 批量写入和 JSON 工具。
-- `model_loading`：YuNet、DMS YOLO、后置 YOLO 的 OpenCV 加载与空白图推理。
+当前根级 C++ 测试均为 GoogleTest 写法，CTest 会自动发现每个 `TEST(...)` 用例：
+
+- `DomainTypeConversion` / `RiskMath` / `FusionCore`：枚举边界、风险数学、融合 L3 门控。
+- `EventStore` / `EventStoreJson`：SQLite/WAL 批量写入和 JSON 工具。
+- `ModelLoading`：YuNet、DMS YOLO、后置 YOLO 的 OpenCV 加载与空白图推理。
 - `project_checks`：XML-only 配置、模型 hash、launch 参数、SQLite 配置、非测试 Python 清理和文档口径。

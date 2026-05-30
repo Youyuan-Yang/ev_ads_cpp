@@ -44,13 +44,15 @@ cmake --build build/mac
 ctest --test-dir build/mac --output-on-failure
 ```
 
+根目录 `CMakeLists.txt` 通过 `FetchContent` 自动下载 GoogleTest，并由 `gtest_discover_tests` 把 C++ 单测挂到 CTest。首次配置需要网络，后续复用本地 `build/mac/_deps`。
+
 当前测试项：
 
 | 测试 | 覆盖内容 |
 |---|---|
-| `risk_math_and_fusion` | enum 转换、TTC、后向风险、疲劳分、融合 L3 门控 |
-| `event_store` | SQLite/WAL 批量写入、事件表、JSON 工具 |
-| `model_loading` | `driver_face_yunet.onnx`、`driver_dms_yolo.onnx`、`rear_yolo.onnx` 的 OpenCV 加载和空白图推理 |
+| `DomainTypeConversion.*`、`RiskMath.*`、`FusionCore.*` | enum 转换、TTC、后向风险、疲劳分、融合 L3 门控 |
+| `EventStore.*`、`EventStoreJson.*` | SQLite/WAL 批量写入、事件表、JSON 工具 |
+| `ModelLoading.*` | `driver_face_yunet.onnx`、`driver_dms_yolo.onnx`、`rear_yolo.onnx` 的 OpenCV 加载和空白图推理 |
 | `project_checks` | XML-only 配置、模型 hash、launch 参数、SQLite 默认配置、非测试 Python 清理、文档口径 |
 
 ## 3. 无硬件冒烟测试
