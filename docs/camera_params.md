@@ -1,6 +1,6 @@
 # C++ Runtime 摄像头参数
 
-配置文件：`ros2_ws/src/ev_ads_runtime_cpp/config/cameras.yaml`
+运行配置入口：`ros2_ws/src/ev_ads_runtime_cpp/launch/cpp_runtime.launch.xml`
 
 ## 1. by-id 路径
 
@@ -10,20 +10,14 @@
 ls -l /dev/v4l/by-id/
 ```
 
-把实际路径写入：
+把实际路径写到 launch 参数，或启动时覆盖：
 
-```yaml
-camera_front:
-  ros__parameters:
-    device: "/dev/v4l/by-id/..."
-
-camera_rear:
-  ros__parameters:
-    device: "/dev/v4l/by-id/..."
-
-camera_driver:
-  ros__parameters:
-    device: "/dev/v4l/by-id/..."
+```bash
+ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
+  use_fakes:=false \
+  front_camera_device:=/dev/v4l/by-id/... \
+  rear_camera_device:=/dev/v4l/by-id/... \
+  driver_camera_device:=/dev/v4l/by-id/...
 ```
 
 ## 2. 推荐参数
@@ -50,7 +44,7 @@ ros2 topic echo /camera/front/health
 
 鱼眼去畸变：
 
-- 配置文件：`ros2_ws/src/ev_ads_runtime_cpp/config/rear_fisheye.yaml`
+- 配置入口：`ros2_ws/src/ev_ads_runtime_cpp/launch/cpp_runtime.launch.xml`
 - `fisheye_undistort: true` 开启校正。
 - `fisheye_k: [fx, fy, cx, cy]` 填入相机内参。
 - `fisheye_d: [k1, k2, k3, k4]` 填入 OpenCV fisheye 畸变参数。
@@ -62,7 +56,7 @@ OpenCV 标定建议：
 ```text
 采集 20-40 张不同角度棋盘格图像
 使用 cv::fisheye::calibrate 求 K/D
-把 K/D 写入 rear_fisheye.yaml
+把 K/D 写入 cpp_runtime.launch.xml 中 rear_perception_node 的 fisheye_k/fisheye_d
 打开 fisheye_undistort 后检查画面边缘直线是否明显改善
 ```
 

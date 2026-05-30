@@ -87,7 +87,7 @@ install(DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}
 )
 
-install(DIRECTORY config scenarios
+install(DIRECTORY scenarios
   DESTINATION share/${PROJECT_NAME}
 )
 

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scenario name="rear_right_blindspot_turn" duration_s="6.0">
+  <description>右后目标逼近 + IMU 右转倾向，期望 L2，禁止制动。</description>
+  <events>
+    <event t="0.0">
+      <rear_zones left_distance="-1" center_distance="-1" right_distance="8" left_speed="0" center_speed="0" right_speed="2"/>
+    </event>
+    <event t="2.0">
+      <rear_zones left_distance="-1" center_distance="-1" right_distance="5" left_speed="0" center_speed="0" right_speed="3"/>
+    </event>
+    <event t="4.0">
+      <rear_zones left_distance="-1" center_distance="-1" right_distance="3" left_speed="0" center_speed="0" right_speed="4"/>
+      <imu yaw_rate="-0.6"/>
+    </event>
+  </events>
+  <assertions max_level_at_least="2" max_level_at_most="2" brake_enable_must_be_false="true"/>
+</scenario>

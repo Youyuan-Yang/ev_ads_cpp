@@ -50,21 +50,20 @@
 | UART_TX| RX  |
 | UART_RX| TX  |
 
-确认串口：`ls /dev/serial/by-id`。在 `imu.yaml` 中：
-```yaml
-imu_node:
-  ros__parameters:
-    driver: "uart"
-    port: "/dev/serial/by-id/usb-xxx"
-    baud: 921600
+确认串口：`ls /dev/serial/by-id`。在 `cpp_runtime.launch.xml` 的 `imu_node` 中：
+
+```xml
+<param name="driver" value="uart"/>
+<param name="port" value="/dev/serial/by-id/usb-xxx"/>
+<param name="baud" value="921600"/>
 ```
 
 ## 6. 安装方向 & mounting_transform
 
 车体约定：X 车头、Y 左、Z 上。把 IMU 朝向车体的相对欧拉角（degrees）写入：
 
-```yaml
-mount_rpy_deg: [180.0, 0.0, 90.0]   # 示例：IMU 倒装并左旋 90°
+```xml
+<param name="mount_rpy_deg" value="[180.0, 0.0, 90.0]"/>
 ```
 
 C++ runtime 中 mounting transform 已集成在 `imu_node_cpp`。后续应补 gtest 覆盖 identity / yaw 90 / roll 180 / pair 一致性。

@@ -4,7 +4,7 @@
   <arg name="perception_mode" default="scripted"/>
   <arg name="imu_driver" default="i2c"/>
   <arg name="mmwave_mode" default="ble"/>
-  <arg name="fusion_config" default="$(find-pkg-share ev_ads_runtime_cpp)/config/fusion_urban_day.yaml"/>
+  <arg name="fusion_profile" default="urban_day"/>
   <arg name="rear_model_path" default=""/>
   <arg name="driver_model_path" default=""/>
   <arg name="driver_face_model_path" default=""/>
@@ -17,7 +17,7 @@
     <arg name="perception_mode" value="$(var perception_mode)"/>
     <arg name="imu_driver" value="$(var imu_driver)"/>
     <arg name="mmwave_mode" value="$(var mmwave_mode)"/>
-    <arg name="fusion_config" value="$(var fusion_config)"/>
+    <arg name="fusion_profile" value="$(var fusion_profile)"/>
     <arg name="rear_model_path" value="$(var rear_model_path)"/>
     <arg name="driver_model_path" value="$(var driver_model_path)"/>
     <arg name="driver_face_model_path" value="$(var driver_face_model_path)"/>

@@ -2,7 +2,6 @@
 import hashlib
 import os
 import pathlib
-import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
@@ -21,19 +20,14 @@ XML_FILES = [
     "ros2_ws/src/ev_ads_runtime_cpp/launch/cpp_runtime.launch.xml",
     "ros2_ws/src/ev_ads_bringup/launch/ev_ads_cpp_runtime.launch.xml",
     "ros2_ws/src/ev_ads_bringup/launch/ev_ads_demo.launch.xml",
+    "ros2_ws/src/ev_ads_runtime_cpp/scenarios/driver_drowsy.xml",
+    "ros2_ws/src/ev_ads_runtime_cpp/scenarios/front_pedestrian_emergency.xml",
+    "ros2_ws/src/ev_ads_runtime_cpp/scenarios/front_sensor_lost.xml",
+    "ros2_ws/src/ev_ads_runtime_cpp/scenarios/imu_lean_in_curve.xml",
+    "ros2_ws/src/ev_ads_runtime_cpp/scenarios/mmwave_abnormal_low_confidence.xml",
+    "ros2_ws/src/ev_ads_runtime_cpp/scenarios/rear_right_blindspot_turn.xml",
     "ros2_ws/src/ev_ads_runtime_cpp/package.xml",
     "ros2_ws/src/ev_ads_bringup/package.xml",
-]
-
-
-YAML_FILES = [
-    "ros2_ws/src/ev_ads_runtime_cpp/config/cameras.yaml",
-    "ros2_ws/src/ev_ads_runtime_cpp/config/driver_monitor.yaml",
-    "ros2_ws/src/ev_ads_runtime_cpp/config/fusion_urban_day.yaml",
-    "ros2_ws/src/ev_ads_runtime_cpp/config/fusion_night.yaml",
-    "ros2_ws/src/ev_ads_runtime_cpp/config/fusion_long_ride.yaml",
-    "ros2_ws/src/ev_ads_runtime_cpp/config/imu.yaml",
-    "ros2_ws/src/ev_ads_runtime_cpp/config/rear_fisheye.yaml",
 ]
 
 
@@ -75,27 +69,29 @@ def check_xml() -> None:
         ET.parse(ROOT / rel)
 
 
-def check_yaml() -> None:
-    missing = [rel for rel in YAML_FILES if not (ROOT / rel).exists()]
-    if missing:
-        fail("缺少 YAML 配置: " + ", ".join(missing))
-    code = "require 'yaml'; ARGV.each { |f| YAML.load_file(f) }; puts 'yaml_ok'"
-    cmd = ["ruby", "-e", code] + [str(ROOT / rel) for rel in YAML_FILES]
-    result = subprocess.run(cmd, text=True, capture_output=True)
-    if result.returncode != 0:
-        fail("YAML 解析失败: " + result.stderr.strip())
+def check_no_mixed_project_config() -> None:
+    ignored_parts = {"build", "install", "log", "__pycache__", ".git"}
+    mixed = []
+    for suffix in ("*.yaml", "*.yml", "*.toml"):
+        for path in ROOT.rglob(suffix):
+            rel = path.relative_to(ROOT)
+            if set(rel.parts) & ignored_parts:
+                continue
+            mixed.append(str(rel))
+    if mixed:
+        fail("项目自有配置必须统一为 XML，发现混用文件: " + ", ".join(sorted(mixed)))
 
 
 def check_model_files() -> None:
     for rel, expected in EXPECTED_HASHES.items():
-      path = ROOT / rel
-      if not path.exists():
-          fail(f"模型不存在: {rel}")
-      if path.stat().st_size <= 1024:
-          fail(f"模型文件异常过小: {rel}")
-      actual = sha256(path)
-      if actual != expected:
-          fail(f"模型 hash 不匹配: {rel} expected={expected} actual={actual}")
+        path = ROOT / rel
+        if not path.exists():
+            fail(f"模型不存在: {rel}")
+        if path.stat().st_size <= 1024:
+            fail(f"模型文件异常过小: {rel}")
+        actual = sha256(path)
+        if actual != expected:
+            fail(f"模型 hash 不匹配: {rel} expected={expected} actual={actual}")
 
 
 def check_launch_configuration() -> None:
@@ -106,18 +102,25 @@ def check_launch_configuration() -> None:
         'name="event_log_path" default="/tmp/ev_ads/events.sqlite"',
         'name="storage_backend" value="$(var event_storage_backend)"',
         'name="face_model_path" value="$(var driver_face_model_path)"',
+        'name="fisheye_undistort"',
+        'name="model_class_ids" value="[0, 1, 2, 3, 5, 7]"',
+        'name="w_front" value="$(var w_front)"',
     ]:
         if required not in runtime_launch:
             fail(f"runtime launch 缺少配置: {required}")
+    if "<param from=" in runtime_launch or "fusion_config" in runtime_launch:
+        fail("runtime launch 仍依赖外部配置文件")
 
     for rel in [
         "ros2_ws/src/ev_ads_bringup/launch/ev_ads_cpp_runtime.launch.xml",
         "ros2_ws/src/ev_ads_bringup/launch/ev_ads_demo.launch.xml",
     ]:
         text = read_text(rel)
-        for required in ["driver_face_model_path", "event_storage_backend", "events.sqlite"]:
+        for required in ["driver_face_model_path", "event_storage_backend", "events.sqlite", "fusion_profile"]:
             if required not in text:
                 fail(f"{rel} 未转发配置: {required}")
+        if "fusion_config" in text:
+            fail(f"{rel} 仍保留 fusion_config 外部配置入口")
 
 
 def check_runtime_sources() -> None:
@@ -142,6 +145,8 @@ def check_runtime_sources() -> None:
     for needle in ["find_package(SQLite3 REQUIRED)", "add_library(event_store", "target_link_libraries(event_logger_node_cpp"]:
         if needle not in cmake:
             fail(f"runtime CMake 未配置: {needle}")
+    if "install(DIRECTORY config" in cmake:
+        fail("runtime CMake 仍安装 YAML config 目录")
 
     package_xml = read_text("ros2_ws/src/ev_ads_runtime_cpp/package.xml")
     if "<depend>sqlite3</depend>" not in package_xml:
@@ -166,9 +171,11 @@ def check_docs() -> None:
         fail("README 未写根目录统一测试命令")
     if "SQLite/WAL" not in readme:
         fail("README 未说明 SQLite/WAL 事件记录")
+    if "XML/YAML" in readme or ".yaml" in readme or ".toml" in readme:
+        fail("README 仍描述多配置格式")
 
     test_plan = read_text("docs/test_plan.md")
-    for needle in ["cmake -S . -B build/mac", "events.sqlite", "model_loading"]:
+    for needle in ["cmake -S . -B build/mac", "events.sqlite", "model_loading", "XML-only"]:
         if needle not in test_plan:
             fail(f"测试计划未覆盖: {needle}")
 
@@ -176,7 +183,7 @@ def check_docs() -> None:
 def main() -> None:
     check_no_runtime_python()
     check_xml()
-    check_yaml()
+    check_no_mixed_project_config()
     check_model_files()
     check_launch_configuration()
     check_runtime_sources()

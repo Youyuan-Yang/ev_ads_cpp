@@ -56,7 +56,7 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 鱼眼处理：
 
 - 后置节点已支持 OpenCV fisheye 去畸变。
-- 配置文件：`ros2_ws/src/ev_ads_runtime_cpp/config/rear_fisheye.yaml`。
+- 配置入口：`ros2_ws/src/ev_ads_runtime_cpp/launch/cpp_runtime.launch.xml`。
 - 参数：`fisheye_undistort`、`fisheye_k=[fx,fy,cx,cy]`、`fisheye_d=[k1,k2,k3,k4]`、`fisheye_balance`、`fisheye_fov_scale`。
 - 未填真实标定参数时不要打开去畸变；错误内参会让检测和估距都变差。
 

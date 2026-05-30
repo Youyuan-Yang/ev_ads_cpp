@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scenario name="front_sensor_lost" duration_s="5.0">
+  <description>前向摄像头超时，系统 degraded，禁止 L3 制动。</description>
+  <events>
+    <event t="0.0">
+      <front health="3"/>
+    </event>
+    <event t="1.0">
+      <driver face_visible="1" eye_closure_ratio="0.85" head_pitch_rad="0.5"/>
+    </event>
+    <event t="2.0">
+      <rear_zones left_distance="-1" center_distance="-1" right_distance="2.5" left_speed="0" center_speed="0" right_speed="5"/>
+    </event>
+  </events>
+  <assertions brake_enable_must_be_false="true" reason_contains="front_cam_down"/>
+</scenario>

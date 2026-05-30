@@ -49,11 +49,11 @@ source install/setup.bash
 
 | 内容 | 文件 |
 |---|---|
-| 摄像头 | `ros2_ws/src/ev_ads_runtime_cpp/config/cameras.yaml` |
-| IMU | `ros2_ws/src/ev_ads_runtime_cpp/config/imu.yaml` |
-| 融合 | `ros2_ws/src/ev_ads_runtime_cpp/config/fusion_*.yaml` |
+| 摄像头、IMU、融合、后置鱼眼、DMS 阈值 | `ros2_ws/src/ev_ads_runtime_cpp/launch/cpp_runtime.launch.xml` |
 | ONNX 模型 | `models/onnx/` |
 | RKNN 模型 | `models/rknn/` |
+
+项目自有运行配置统一写在 ROS2 XML launch 中；不要再新增 YAML/TOML 配置文件。
 
 ## 5. 启动
 

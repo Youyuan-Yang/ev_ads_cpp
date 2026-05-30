@@ -23,12 +23,6 @@
 
 ```text
 ev_ads_runtime_cpp/
-├── config/
-│   ├── cameras.yaml
-│   ├── imu.yaml
-│   ├── fusion_urban_day.yaml
-│   ├── fusion_night.yaml
-│   └── fusion_long_ride.yaml
 ├── include/ev_ads_runtime_cpp/
 │   ├── common.hpp
 │   ├── types.hpp
@@ -39,6 +33,10 @@ ev_ads_runtime_cpp/
 │   └── yolo_onnx.hpp
 ├── launch/
 │   └── cpp_runtime.launch.xml
+├── scenarios/
+│   ├── front_pedestrian_emergency.xml
+│   ├── driver_drowsy.xml
+│   └── ...
 └── src/
     ├── camera_node_cpp.cpp
     ├── imu_node_cpp.cpp
@@ -104,7 +102,7 @@ R = clamp(α * R_weighted + β * R_prob + R_synergy, 0, 1)
 
 - YuNet 负责人脸可见、脸框位置和短时漏检缓冲。
 - SafeDrive DMS YOLO 负责 `eye_open/eye_half/eye_closed/mouth_open/mouth_closed/phone/cigarette/seatbelt_on/seatbelt_off`。
-- 默认类别映射写入 `config/driver_monitor.yaml`。
+- 默认类别映射写入 `cpp_runtime.launch.xml` 的 `driver_monitor_node` 参数。
 - 人脸连续消失超过 `face_absence_warning_ms` 后按分心/离岗风险处理。
 
 仍未补齐：
@@ -165,15 +163,16 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 - 新增 `event_store.hpp/cpp`：封装 SQLite/JSONL 事件存储，默认 WAL + 批量提交，降低 JSONL 高频 flush 性能风险。
 - 新增根目录级 `CMakeLists.txt` 与 `test/`：Mac 上从项目根目录统一编译测试 `common`、`FusionCore`、`EventStore`、ONNX 模型加载和项目配置。
 - 将旧 Python launch 改为 XML launch。
+- 将运行参数统一收敛到 ROS2 XML launch，删除项目自有 YAML/TOML 配置，场景文件改为 XML。
 - 删除非测试 Python 运行包、`apps/`、`tools/`。
 - 下载官方 Ultralytics `yolo11n.pt`，在 `/private/tmp` 临时环境导出 ONNX，并放入 `models/onnx/rear_yolo.onnx`。
 - 备份本机原有 `yolo26n.onnx` 到 `models/onnx/rear_yolo_local_yolo26n.onnx`。
 - 修正 `yolo_onnx.cpp`：兼容 `x1,y1,x2,y2,score,class_id` 这种端到端 ONNX 输出格式。
-- 新增后置鱼眼去畸变：`rear_node_cpp` 支持 OpenCV fisheye `K/D` 参数，配置文件为 `config/rear_fisheye.yaml`。
+- 新增后置鱼眼去畸变：`rear_node_cpp` 支持 OpenCV fisheye `K/D` 参数，参数统一写入 `cpp_runtime.launch.xml`。
 - 经用户确认后，下载 OpenCV Zoo YuNet 人脸 ONNX 到临时目录，验证 `FaceDetectorYN` 可创建后复制到 `models/onnx/driver_face_yunet.onnx`。
 - 经用户确认后，从 SafeDrive 模型仓库下载 `yolo_safedrive.pt`。原始 Hugging Face 域名在本机网络超时，因此使用 `hf-mirror.com` 获取同名文件；随后在 `/private/tmp` 临时环境导出 ONNX 并复制到 `models/onnx/driver_dms_yolo.onnx`。
 - 修改 `driver_monitor_node_cpp`：新增 YuNet 人脸检测、DMS YOLO 类别映射、半闭眼证据、人脸连续消失缓冲和组合风险输出。
-- 新增 `config/driver_monitor.yaml`：记录 SafeDrive 类别 ID、YuNet 阈值和人脸消失风险参数。
+- 将 SafeDrive 类别 ID、YuNet 阈值和人脸消失风险参数写入 `cpp_runtime.launch.xml`。
 - 记录模型来源、hash 和本机 OpenCV 加载测试结果。
 
 ## 8. 自检结果
@@ -187,8 +186,8 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 - 后置 ONNX 已通过本机 OpenCV DNN 加载测试。
 - YuNet 人脸 ONNX 已通过本机 OpenCV `FaceDetectorYN` 创建和空白图检测测试。
 - DMS YOLO ONNX 已通过本机 OpenCV DNN 加载测试，项目检测器空白图推理成功，检测数量为 0。
-- XML launch 已通过 `xmllint` 检查。
-- `driver_monitor.yaml` 与 `rear_fisheye.yaml` 已通过 YAML 解析检查。
+- XML launch 和 XML 场景文件已通过解析检查。
+- 项目自有运行配置已统一为 XML，不再保留 YAML/TOML 配置文件。
 - Mac 本机根目录级 CMake/CTest 已通过：
   - `common_and_fusion`
   - `event_store`

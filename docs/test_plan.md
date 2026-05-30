@@ -53,7 +53,7 @@ ctest --test-dir build/mac --output-on-failure
 | `common_and_fusion` | enum 转换、TTC、后向风险、疲劳分、融合 L3 门控 |
 | `event_store` | SQLite/WAL 批量写入、事件表、JSON 工具 |
 | `model_loading` | `driver_face_yunet.onnx`、`driver_dms_yolo.onnx`、`rear_yolo.onnx` 的 OpenCV 加载和空白图推理 |
-| `project_checks` | XML/YAML、模型 hash、launch 参数、SQLite 默认配置、非测试 Python 清理、文档口径 |
+| `project_checks` | XML-only 配置、模型 hash、launch 参数、SQLite 默认配置、非测试 Python 清理、文档口径 |
 
 ## 3. 无硬件冒烟测试
 

@@ -6,8 +6,8 @@
 
 - 运行包只保留 `ev_ads_runtime_cpp`、`ev_ads_interfaces`、`ev_ads_bringup`。
 - 摄像头、IMU、前向感知、后向感知、驾驶员监测、融合决策、HMI、事件记录、毫米波占位入口均为 C++。
-- 启动入口改为 XML launch：`ev_ads_cpp_runtime.launch.xml`。
-- `models/onnx/rear_yolo.onnx` 已放入，用于后置鱼眼第一版靠近识别；后置节点已支持 OpenCV fisheye 去畸变，配置见 `config/rear_fisheye.yaml`。
+- 启动和运行参数统一为 ROS2 XML launch：`ev_ads_cpp_runtime.launch.xml`，不再混用 YAML/TOML。
+- `models/onnx/rear_yolo.onnx` 已放入，用于后置鱼眼第一版靠近识别；后置节点已支持 OpenCV fisheye 去畸变，参数写在 XML launch 中。
 - 驾驶员监测已放入 YuNet 人脸 ONNX 与 SafeDrive DMS YOLO ONNX，节点按人脸检测 + 闭眼/哈欠/手机行为检测组合运行。
 - 前置坑洼、路面病害、障碍物和“鬼探头”危险模型仍需专项训练。
 
@@ -97,4 +97,4 @@ ctest --test-dir build/mac --output-on-failure
 - `common_and_fusion`：枚举边界、风险数学、融合 L3 门控。
 - `event_store`：SQLite/WAL 批量写入和 JSON 工具。
 - `model_loading`：YuNet、DMS YOLO、后置 YOLO 的 OpenCV 加载与空白图推理。
-- `project_checks`：XML/YAML、模型 hash、launch 参数、SQLite 配置、非测试 Python 清理和文档口径。
+- `project_checks`：XML-only 配置、模型 hash、launch 参数、SQLite 配置、非测试 Python 清理和文档口径。

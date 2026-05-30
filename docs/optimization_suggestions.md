@@ -31,7 +31,7 @@
 
 - 已补入 `models/onnx/rear_yolo.onnx`。
 - 用真实鱼眼画面验证检测类别和边缘误检。
-- 完成 OpenCV fisheye 标定，填入 `config/rear_fisheye.yaml`。
+- 完成 OpenCV fisheye 标定，填入 `cpp_runtime.launch.xml` 中后置节点的 `fisheye_k/fisheye_d` 参数。
 - 验证左/中/右三区距离和靠近速度。
 - 开启去畸变后重新标定 `distance_focal_px`。
 - ONNX 稳定后转换 RKNN。
@@ -39,7 +39,7 @@
 DMS：
 
 - 已补入 `models/onnx/driver_face_yunet.onnx` 和 `models/onnx/driver_dms_yolo.onnx`。
-- 当前类别 ID 已按 SafeDrive 写入 `config/driver_monitor.yaml`：睁眼 `[0]`、半闭眼 `[1]`、闭眼 `[2]`、张嘴 `[3]`、手机 `[5]`、吸烟/分心 `[6]`。
+- 当前类别 ID 已按 SafeDrive 写入 `cpp_runtime.launch.xml`：睁眼 `[0]`、半闭眼 `[1]`、闭眼 `[2]`、张嘴 `[3]`、手机 `[5]`、吸烟/分心 `[6]`。
 - 用真实驾驶员摄像头核对人脸、闭眼、半闭眼、打哈欠、手机和夜间补光场景。
 - 增加 30-60 秒 PERCLOS 滑动窗口。
 - 夜间、头盔、口罩、补光场景必须单独测试。
