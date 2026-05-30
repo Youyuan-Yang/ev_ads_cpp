@@ -1,5 +1,7 @@
 #pragma once
 
+// YOLO ONNX 检测器接口，供后置盲区和驾驶员 DMS 复用。
+
 #include <opencv2/core.hpp>
 #include <opencv2/dnn.hpp>
 

@@ -1,16 +1,17 @@
+// 事件记录节点：订阅关键状态并写入 SQLite/WAL 或兼容 JSONL 后端。
 #include <chrono>
 #include <memory>
 #include <string>
 
-#include "ev_ads_interfaces/msg/blind_spot_state.hpp"
-#include "ev_ads_interfaces/msg/brake_command.hpp"
-#include "ev_ads_interfaces/msg/driver_state.hpp"
-#include "ev_ads_interfaces/msg/front_risk.hpp"
-#include "ev_ads_interfaces/msg/mm_wave_vital.hpp"
-#include "ev_ads_interfaces/msg/risk_state.hpp"
-#include "ev_ads_interfaces/msg/vehicle_motion.hpp"
-#include "ev_ads_interfaces/msg/warning_command.hpp"
-#include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/msg/blind_spot_state.hpp"
+#include "ev_ads_runtime_cpp/msg/brake_command.hpp"
+#include "ev_ads_runtime_cpp/msg/driver_state.hpp"
+#include "ev_ads_runtime_cpp/msg/front_risk.hpp"
+#include "ev_ads_runtime_cpp/msg/mm_wave_vital.hpp"
+#include "ev_ads_runtime_cpp/msg/risk_state.hpp"
+#include "ev_ads_runtime_cpp/msg/vehicle_motion.hpp"
+#include "ev_ads_runtime_cpp/msg/warning_command.hpp"
+#include "ev_ads_runtime_cpp/risk_math.hpp"
 #include "ev_ads_runtime_cpp/event_store.hpp"
 #include "ev_ads_runtime_cpp/runtime_config.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -33,10 +34,10 @@ std::string object_payload(const std::string& body) {
 
 }  // namespace
 
-class EventLoggerNodeCpp final : public rclcpp::Node {
+class EventRecorderNode final : public rclcpp::Node {
  public:
-  EventLoggerNodeCpp()
-      : Node("event_logger_node_cpp"),
+  EventRecorderNode()
+      : Node("event_recorder_node"),
         config_(read_event_logger_config(this)) {
     EventStoreConfig store_config;
     store_config.backend = config_.storage_backend;
@@ -55,53 +56,53 @@ class EventLoggerNodeCpp final : public rclcpp::Node {
           store_config.flush_every_n);
     }
 
-    risk_sub_ = create_subscription<ev_ads_interfaces::msg::RiskState>(
+    risk_sub_ = create_subscription<ev_ads_runtime_cpp::msg::RiskState>(
         topics_.risk_state, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::RiskState::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::RiskState::SharedPtr msg) {
           on_risk(*msg);
         });
-    warning_sub_ = create_subscription<ev_ads_interfaces::msg::WarningCommand>(
+    warning_sub_ = create_subscription<ev_ads_runtime_cpp::msg::WarningCommand>(
         topics_.warning_cmd, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::WarningCommand::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::WarningCommand::SharedPtr msg) {
           write_event("warning", warning_payload(*msg));
         });
-    brake_sub_ = create_subscription<ev_ads_interfaces::msg::BrakeCommand>(
+    brake_sub_ = create_subscription<ev_ads_runtime_cpp::msg::BrakeCommand>(
         topics_.brake_cmd, rclcpp::QoS(1),
-        [this](ev_ads_interfaces::msg::BrakeCommand::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::BrakeCommand::SharedPtr msg) {
           write_event("brake", brake_payload(*msg));
         });
-    front_sub_ = create_subscription<ev_ads_interfaces::msg::FrontRisk>(
+    front_sub_ = create_subscription<ev_ads_runtime_cpp::msg::FrontRisk>(
         topics_.front_risk, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::FrontRisk::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::FrontRisk::SharedPtr msg) {
           if (msg->health != HEALTH_OK || msg->risk_score >= 0.60f) {
             write_event("front", front_payload(*msg));
           }
         });
-    rear_sub_ = create_subscription<ev_ads_interfaces::msg::BlindSpotState>(
+    rear_sub_ = create_subscription<ev_ads_runtime_cpp::msg::BlindSpotState>(
         topics_.blind_spot, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::BlindSpotState::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::BlindSpotState::SharedPtr msg) {
           if (msg->health != HEALTH_OK || msg->risk_score >= 0.60f) {
             write_event("rear", rear_payload(*msg));
           }
         });
-    driver_sub_ = create_subscription<ev_ads_interfaces::msg::DriverState>(
+    driver_sub_ = create_subscription<ev_ads_runtime_cpp::msg::DriverState>(
         topics_.driver_state, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::DriverState::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::DriverState::SharedPtr msg) {
           if (msg->health != HEALTH_OK || msg->fatigue_score >= 0.60f ||
               msg->distraction_ratio >= 0.60f) {
             write_event("driver", driver_payload(*msg));
           }
         });
-    motion_sub_ = create_subscription<ev_ads_interfaces::msg::VehicleMotion>(
+    motion_sub_ = create_subscription<ev_ads_runtime_cpp::msg::VehicleMotion>(
         topics_.vehicle_motion, rclcpp::QoS(50),
-        [this](ev_ads_interfaces::msg::VehicleMotion::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::VehicleMotion::SharedPtr msg) {
           if (msg->health != HEALTH_OK || msg->motion_flags != 0) {
             write_event("motion", motion_payload(*msg));
           }
         });
-    mmwave_sub_ = create_subscription<ev_ads_interfaces::msg::MmWaveVital>(
+    mmwave_sub_ = create_subscription<ev_ads_runtime_cpp::msg::MmWaveVital>(
         topics_.mmwave_vital, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::MmWaveVital::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::MmWaveVital::SharedPtr msg) {
           if (msg->health != HEALTH_OK || msg->confidence < 0.30f) {
             write_event("mmwave", mmwave_payload(*msg));
           }
@@ -127,7 +128,7 @@ class EventLoggerNodeCpp final : public rclcpp::Node {
     }
   }
 
-  void on_risk(const ev_ads_interfaces::msg::RiskState& msg) {
+  void on_risk(const ev_ads_runtime_cpp::msg::RiskState& msg) {
     const bool changed = !has_last_risk_ ||
         msg.level != last_level_ ||
         msg.primary_reason != last_reason_;
@@ -139,7 +140,7 @@ class EventLoggerNodeCpp final : public rclcpp::Node {
     last_reason_ = msg.primary_reason;
   }
 
-  static std::string risk_payload(const ev_ads_interfaces::msg::RiskState& msg) {
+  static std::string risk_payload(const ev_ads_runtime_cpp::msg::RiskState& msg) {
     return object_payload(
         "\"level\":" + std::to_string(msg.level) + "," +
         "\"score\":" + number_json(msg.score) + "," +
@@ -149,7 +150,7 @@ class EventLoggerNodeCpp final : public rclcpp::Node {
         "\"sensor_health\":" + std::to_string(msg.sensor_health_summary));
   }
 
-  static std::string warning_payload(const ev_ads_interfaces::msg::WarningCommand& msg) {
+  static std::string warning_payload(const ev_ads_runtime_cpp::msg::WarningCommand& msg) {
     return object_payload(
         "\"level\":" + std::to_string(msg.level) + "," +
         "\"voice\":\"" + escape_json(msg.voice_text) + "\"," +
@@ -159,7 +160,7 @@ class EventLoggerNodeCpp final : public rclcpp::Node {
         "\"duration_ms\":" + std::to_string(msg.duration_ms));
   }
 
-  static std::string brake_payload(const ev_ads_interfaces::msg::BrakeCommand& msg) {
+  static std::string brake_payload(const ev_ads_runtime_cpp::msg::BrakeCommand& msg) {
     return object_payload(
         "\"enable\":" + std::string(msg.enable ? "true" : "false") + "," +
         "\"demand\":" + number_json(msg.demand) + "," +
@@ -168,7 +169,7 @@ class EventLoggerNodeCpp final : public rclcpp::Node {
         "\"source\":\"" + escape_json(msg.source) + "\"");
   }
 
-  static std::string front_payload(const ev_ads_interfaces::msg::FrontRisk& msg) {
+  static std::string front_payload(const ev_ads_runtime_cpp::msg::FrontRisk& msg) {
     return object_payload(
         "\"risk\":" + number_json(msg.risk_score) + "," +
         "\"ttc\":" + number_json(msg.ttc) + "," +
@@ -177,7 +178,7 @@ class EventLoggerNodeCpp final : public rclcpp::Node {
         "\"health\":" + std::to_string(msg.health));
   }
 
-  static std::string rear_payload(const ev_ads_interfaces::msg::BlindSpotState& msg) {
+  static std::string rear_payload(const ev_ads_runtime_cpp::msg::BlindSpotState& msg) {
     return object_payload(
         "\"risk\":" + number_json(msg.risk_score) + "," +
         "\"left\":" + std::to_string(msg.zone_left) + "," +
@@ -186,7 +187,7 @@ class EventLoggerNodeCpp final : public rclcpp::Node {
         "\"health\":" + std::to_string(msg.health));
   }
 
-  static std::string driver_payload(const ev_ads_interfaces::msg::DriverState& msg) {
+  static std::string driver_payload(const ev_ads_runtime_cpp::msg::DriverState& msg) {
     return object_payload(
         "\"fatigue\":" + number_json(msg.fatigue_score) + "," +
         "\"distraction\":" + number_json(msg.distraction_ratio) + "," +
@@ -195,7 +196,7 @@ class EventLoggerNodeCpp final : public rclcpp::Node {
         "\"health\":" + std::to_string(msg.health));
   }
 
-  static std::string motion_payload(const ev_ads_interfaces::msg::VehicleMotion& msg) {
+  static std::string motion_payload(const ev_ads_runtime_cpp::msg::VehicleMotion& msg) {
     return object_payload(
         "\"flags\":" + std::to_string(msg.motion_flags) + "," +
         "\"roll\":" + number_json(msg.roll) + "," +
@@ -203,7 +204,7 @@ class EventLoggerNodeCpp final : public rclcpp::Node {
         "\"health\":" + std::to_string(msg.health));
   }
 
-  static std::string mmwave_payload(const ev_ads_interfaces::msg::MmWaveVital& msg) {
+  static std::string mmwave_payload(const ev_ads_runtime_cpp::msg::MmWaveVital& msg) {
     return object_payload(
         "\"hr\":" + number_json(msg.heart_rate) + "," +
         "\"br\":" + number_json(msg.breath_rate) + "," +
@@ -218,14 +219,14 @@ class EventLoggerNodeCpp final : public rclcpp::Node {
   bool has_last_risk_{false};
   uint8_t last_level_{0};
   std::string last_reason_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::RiskState>::SharedPtr risk_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::WarningCommand>::SharedPtr warning_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::BrakeCommand>::SharedPtr brake_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::FrontRisk>::SharedPtr front_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::BlindSpotState>::SharedPtr rear_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::DriverState>::SharedPtr driver_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::VehicleMotion>::SharedPtr motion_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::MmWaveVital>::SharedPtr mmwave_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::RiskState>::SharedPtr risk_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::WarningCommand>::SharedPtr warning_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::BrakeCommand>::SharedPtr brake_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::FrontRisk>::SharedPtr front_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::BlindSpotState>::SharedPtr rear_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::DriverState>::SharedPtr driver_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::VehicleMotion>::SharedPtr motion_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::MmWaveVital>::SharedPtr mmwave_sub_;
   rclcpp::TimerBase::SharedPtr flush_timer_;
 };
 
@@ -233,7 +234,7 @@ class EventLoggerNodeCpp final : public rclcpp::Node {
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::EventLoggerNodeCpp>());
+  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::EventRecorderNode>());
   rclcpp::shutdown();
   return 0;
 }

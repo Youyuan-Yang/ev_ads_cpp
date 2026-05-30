@@ -1,5 +1,7 @@
 #pragma once
 
+// 领域枚举和 ROS uint8 边界转换；业务代码内部尽量使用 enum class。
+
 #include <cstdint>
 
 namespace ev_ads_runtime_cpp {

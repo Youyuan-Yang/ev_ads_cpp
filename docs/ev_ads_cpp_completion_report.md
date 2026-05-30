@@ -13,41 +13,44 @@
 
 | 包 | 语言 | 说明 |
 |---|---|---|
-| `ev_ads_runtime_cpp` | C++17 | 摄像头、IMU、感知、DMS、融合、HMI、事件记录、毫米波入口 |
-| `ev_ads_interfaces` | IDL/CMake | ROS 2 消息 |
-| `ev_ads_bringup` | XML launch | C++ runtime 启动入口 |
+| `ev_ads_runtime_cpp` | C++17/IDL/CMake | 摄像头、IMU、感知、DMS、融合、HMI、事件记录、毫米波入口和 ROS 2 消息 |
 
-已删除旧 Python 运行包：`ev_ads_fakes`、`ev_ads_hmi`、`ev_ads_recorder`、`ev_ads_sensor_mmwave_ble`，以及 `apps/`、`tools/`。
+已删除旧 Python 运行包和拆散的 ROS2 包：`ev_ads_fakes`、`ev_ads_hmi`、`ev_ads_recorder`、`ev_ads_sensor_mmwave_ble`、`ev_ads_bringup`、`ev_ads_interfaces`，以及 `apps/`、`tools/`。
 
 ## 3. C++ 架构
 
 ```text
-ev_ads_runtime_cpp/
-├── include/ev_ads_runtime_cpp/
-│   ├── common.hpp
-│   ├── types.hpp
+ev_ads_cpp/
+├── config/
+│   ├── ev_ads_runtime.launch.xml
+│   └── scenarios/
+│       ├── front_pedestrian_emergency.xml
+│       ├── driver_drowsy.xml
+│       └── ...
+└── ros2_ws/src/ev_ads_runtime_cpp/
+    ├── msg/
+    │   ├── FrontRisk.msg
+    │   ├── RiskState.msg
+    │   └── ...
+    ├── include/ev_ads_runtime_cpp/
+│   ├── risk_math.hpp
+│   ├── domain_types.hpp
 │   ├── topics.hpp
 │   ├── runtime_config.hpp
-│   ├── fusion_core.hpp
+│   ├── risk_fusion_core.hpp
 │   ├── event_store.hpp
-│   └── yolo_onnx.hpp
-├── launch/
-│   └── cpp_runtime.launch.xml
-├── scenarios/
-│   ├── front_pedestrian_emergency.xml
-│   ├── driver_drowsy.xml
-│   └── ...
-└── src/
-    ├── camera_node_cpp.cpp
-    ├── imu_node_cpp.cpp
-    ├── front_node_cpp.cpp
-    ├── rear_node_cpp.cpp
-    ├── driver_monitor_node_cpp.cpp
-    ├── fusion_node_cpp.cpp
-    ├── mmwave_node_cpp.cpp
-    ├── hmi_node_cpp.cpp
-    ├── event_logger_node_cpp.cpp
-    └── yolo_onnx.cpp
+│   └── onnx_yolo_detector.hpp
+    └── src/
+    ├── camera_capture_node.cpp
+    ├── imu_motion_node.cpp
+    ├── front_risk_node.cpp
+    ├── rear_blind_spot_node.cpp
+    ├── driver_attention_node.cpp
+    ├── risk_fusion_node.cpp
+    ├── mmwave_vital_node.cpp
+    ├── terminal_hmi_node.cpp
+    ├── event_recorder_node.cpp
+    └── onnx_yolo_detector.cpp
 ```
 
 数据流：
@@ -57,7 +60,7 @@ ev_ads_runtime_cpp/
         ↓
 前向风险 / 后向靠近 / 驾驶员状态 / 车辆运动 / 生命体征
         ↓
-fusion_node_cpp 多模态融合
+risk_fusion_node 多模态融合
         ↓
 RiskState + WarningCommand + BrakeCommand
         ↓
@@ -102,7 +105,7 @@ R = clamp(α * R_weighted + β * R_prob + R_synergy, 0, 1)
 
 - YuNet 负责人脸可见、脸框位置和短时漏检缓冲。
 - SafeDrive DMS YOLO 负责 `eye_open/eye_half/eye_closed/mouth_open/mouth_closed/phone/cigarette/seatbelt_on/seatbelt_off`。
-- 默认类别映射写入 `cpp_runtime.launch.xml` 的 `driver_monitor_node` 参数。
+- 默认类别映射写入根目录 `config/ev_ads_runtime.launch.xml` 的 `driver_attention` 参数。
 - 人脸连续消失超过 `face_absence_warning_ms` 后按分心/离岗风险处理。
 
 仍未补齐：
@@ -128,13 +131,13 @@ models/rknn/front_road_hazard.rknn
 无硬件演示：
 
 ```bash
-ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml use_fakes:=true
+ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml use_fakes:=true
 ```
 
 真实硬件：
 
 ```bash
-ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
+ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
   perception_mode:=scripted \
   imu_driver:=i2c \
@@ -144,7 +147,7 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 模型模式：
 
 ```bash
-ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
+ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
   perception_mode:=model \
   rear_model_path:=/opt/ev_ads/models/onnx/rear_yolo.onnx \
@@ -154,25 +157,25 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 
 ## 7. 关键操作记录
 
-- 新增 `mmwave_node_cpp`：替代 fake mmWave，并保留 `jsonl/ble` 入口。
-- 新增 `hmi_node_cpp`：替代 Python 终端 HMI。
-- 新增 `event_logger_node_cpp`：替代 Python 事件日志；当前默认 SQLite/WAL 批量写入，`jsonl` 仅作为兼容后端。
-- 新增 `types.hpp`：统一 `Health`、`WarningLevel`、`FaceVisibility`、`ObjectClass`、`ZoneState`、`MotionFlag` 等 enum class，ROS `uint8` 只在消息边界转换。
+- 新增 `mmwave_vital_node`：替代 fake mmWave，并保留 `jsonl/ble` 入口。
+- 新增 `terminal_hmi_node`：替代 Python 终端 HMI。
+- 新增 `event_recorder_node`：替代 Python 事件日志；当前默认 SQLite/WAL 批量写入，`jsonl` 仅作为兼容后端。
+- 新增 `domain_types.hpp`：统一 `Health`、`WarningLevel`、`FaceVisibility`、`ObjectClass`、`ZoneState`、`MotionFlag` 等 enum class，ROS `uint8` 只在消息边界转换。
 - 新增 `topics.hpp` 与 `runtime_config.hpp`：集中话题名和节点配置，减少节点内硬编码。
-- 新增 `fusion_core.hpp`：将融合算法从 ROS 节点抽离为可单测核心类，`fusion_node_cpp` 只负责 ROS 消息桥接。
+- 新增 `risk_fusion_core.hpp`：将融合算法从 ROS 节点抽离为可单测核心类，`risk_fusion_node` 只负责 ROS 消息桥接。
 - 新增 `event_store.hpp/cpp`：封装 SQLite/JSONL 事件存储，默认 WAL + 批量提交，降低 JSONL 高频 flush 性能风险。
 - 新增根目录级 `CMakeLists.txt` 与 `test/`：Mac 上从项目根目录统一编译测试 `common`、`FusionCore`、`EventStore`、ONNX 模型加载和项目配置。
 - 将旧 Python launch 改为 XML launch。
-- 将运行参数统一收敛到 ROS2 XML launch，删除项目自有 YAML/TOML 配置，场景文件改为 XML。
+- 将运行参数统一收敛到根目录 `config/ev_ads_runtime.launch.xml`，删除项目自有 YAML/TOML 配置，场景文件统一放入 `config/scenarios/`。
 - 删除非测试 Python 运行包、`apps/`、`tools/`。
 - 下载官方 Ultralytics `yolo11n.pt`，在 `/private/tmp` 临时环境导出 ONNX，并放入 `models/onnx/rear_yolo.onnx`。
 - 备份本机原有 `yolo26n.onnx` 到 `models/onnx/rear_yolo_local_yolo26n.onnx`。
-- 修正 `yolo_onnx.cpp`：兼容 `x1,y1,x2,y2,score,class_id` 这种端到端 ONNX 输出格式。
-- 新增后置鱼眼去畸变：`rear_node_cpp` 支持 OpenCV fisheye `K/D` 参数，参数统一写入 `cpp_runtime.launch.xml`。
+- 修正 `onnx_yolo_detector.cpp`：兼容 `x1,y1,x2,y2,score,class_id` 这种端到端 ONNX 输出格式。
+- 新增后置鱼眼去畸变：`rear_blind_spot_node` 支持 OpenCV fisheye `K/D` 参数，参数统一写入 `ev_ads_runtime.launch.xml`。
 - 经用户确认后，下载 OpenCV Zoo YuNet 人脸 ONNX 到临时目录，验证 `FaceDetectorYN` 可创建后复制到 `models/onnx/driver_face_yunet.onnx`。
 - 经用户确认后，从 SafeDrive 模型仓库下载 `yolo_safedrive.pt`。原始 Hugging Face 域名在本机网络超时，因此使用 `hf-mirror.com` 获取同名文件；随后在 `/private/tmp` 临时环境导出 ONNX 并复制到 `models/onnx/driver_dms_yolo.onnx`。
-- 修改 `driver_monitor_node_cpp`：新增 YuNet 人脸检测、DMS YOLO 类别映射、半闭眼证据、人脸连续消失缓冲和组合风险输出。
-- 将 SafeDrive 类别 ID、YuNet 阈值和人脸消失风险参数写入 `cpp_runtime.launch.xml`。
+- 修改 `driver_attention_node`：新增 YuNet 人脸检测、DMS YOLO 类别映射、半闭眼证据、人脸连续消失缓冲和组合风险输出。
+- 将 SafeDrive 类别 ID、YuNet 阈值和人脸消失风险参数写入 `ev_ads_runtime.launch.xml`。
 - 记录模型来源、hash 和本机 OpenCV 加载测试结果。
 
 ## 8. 自检结果
@@ -180,8 +183,8 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 本机可完成的自检：
 
 - 非构建目录下已无 `.py` 文件。
-- ROS 包只剩 C++/IDL/XML 三个包。
-- 启动入口只剩 `.launch.xml`。
+- ROS 包只剩 `ev_ads_runtime_cpp` 一个包。
+- 启动配置只剩根目录 `config/ev_ads_runtime.launch.xml`。
 - 文档口径已改为 C++ 版本。
 - 后置 ONNX 已通过本机 OpenCV DNN 加载测试。
 - YuNet 人脸 ONNX 已通过本机 OpenCV `FaceDetectorYN` 创建和空白图检测测试。
@@ -189,7 +192,7 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 - XML launch 和 XML 场景文件已通过解析检查。
 - 项目自有运行配置已统一为 XML，不再保留 YAML/TOML 配置文件。
 - Mac 本机根目录级 CMake/CTest 已通过：
-  - `common_and_fusion`
+  - `risk_math_and_fusion`
   - `event_store`
   - `model_loading`
   - `project_checks`

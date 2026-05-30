@@ -1,3 +1,4 @@
+// IMU 运动状态节点：读取 fake/UART/I2C 数据，输出车体姿态和运动事件。
 #include <array>
 #include <atomic>
 #include <chrono>
@@ -22,8 +23,8 @@
 #include <sys/ioctl.h>
 #endif
 
-#include "ev_ads_interfaces/msg/vehicle_motion.hpp"
-#include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/msg/vehicle_motion.hpp"
+#include "ev_ads_runtime_cpp/risk_math.hpp"
 #include "ev_ads_runtime_cpp/topics.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
@@ -361,9 +362,9 @@ class I2cMpu6050LikeDriver final : public ImuDriver {
   int fd_{-1};
 };
 
-class ImuNodeCpp final : public rclcpp::Node {
+class ImuMotionNode final : public rclcpp::Node {
  public:
-  ImuNodeCpp() : Node("imu_node_cpp") {
+  ImuMotionNode() : Node("imu_motion_node") {
     driver_name_ = declare_parameter<std::string>("driver", "fake");
     port_ = declare_parameter<std::string>("port", "/dev/ttyUSB0");
     baud_ = declare_parameter<int>("baud", 921600);
@@ -392,7 +393,7 @@ class ImuNodeCpp final : public rclcpp::Node {
     bias_ = std::make_unique<BiasEstimator>(bias_seconds_);
     mount_ = std::make_unique<MountingTransform>(mount_rpy_deg_);
 
-    pub_motion_ = create_publisher<ev_ads_interfaces::msg::VehicleMotion>(
+    pub_motion_ = create_publisher<ev_ads_runtime_cpp::msg::VehicleMotion>(
         topics_.vehicle_motion, rclcpp::QoS(rclcpp::KeepLast(20)).reliable());
     if (publish_imu_) {
       pub_imu_ = create_publisher<sensor_msgs::msg::Imu>("/imu/data", rclcpp::QoS(20));
@@ -402,7 +403,7 @@ class ImuNodeCpp final : public rclcpp::Node {
     RCLCPP_INFO(get_logger(), "IMU 节点启动，驱动=%s 频率=%.1f", driver_name_.c_str(), rate_hz_);
   }
 
-  ~ImuNodeCpp() override {
+  ~ImuMotionNode() override {
     stop_.store(true);
     if (worker_.joinable()) {
       worker_.join();
@@ -457,7 +458,7 @@ class ImuNodeCpp final : public rclcpp::Node {
       flags |= MOTION_BUMP;
     }
 
-    ev_ads_interfaces::msg::VehicleMotion msg;
+    ev_ads_runtime_cpp::msg::VehicleMotion msg;
     msg.header.stamp = now();
     msg.header.frame_id = frame_id_;
     msg.roll = static_cast<float>(roll);
@@ -508,7 +509,7 @@ class ImuNodeCpp final : public rclcpp::Node {
   std::atomic<bool> stop_{false};
   double last_accel_norm_{-1.0};
   double last_sample_s_{-1.0};
-  rclcpp::Publisher<ev_ads_interfaces::msg::VehicleMotion>::SharedPtr pub_motion_;
+  rclcpp::Publisher<ev_ads_runtime_cpp::msg::VehicleMotion>::SharedPtr pub_motion_;
   RuntimeTopics topics_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr pub_imu_;
 };
@@ -517,7 +518,7 @@ class ImuNodeCpp final : public rclcpp::Node {
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::ImuNodeCpp>());
+  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::ImuMotionNode>());
   rclcpp::shutdown();
   return 0;
 }

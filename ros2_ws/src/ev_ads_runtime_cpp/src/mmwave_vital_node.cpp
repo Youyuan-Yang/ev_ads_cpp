@@ -1,3 +1,4 @@
+// 毫米波生命体征节点：当前支持 fake/jsonl，BLE 后端预留给 RK3588 BlueZ 接入。
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -7,8 +8,8 @@
 #include <regex>
 #include <string>
 
-#include "ev_ads_interfaces/msg/mm_wave_vital.hpp"
-#include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/msg/mm_wave_vital.hpp"
+#include "ev_ads_runtime_cpp/risk_math.hpp"
 #include "ev_ads_runtime_cpp/topics.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -36,16 +37,16 @@ bool read_int_field(const std::string& text, const std::string& field, int* outp
 
 }  // 匿名命名空间
 
-class MmWaveNodeCpp final : public rclcpp::Node {
+class MmWaveVitalNode final : public rclcpp::Node {
  public:
-  MmWaveNodeCpp() : Node("mmwave_node_cpp") {
+  MmWaveVitalNode() : Node("mmwave_vital_node") {
     mode_ = declare_parameter<std::string>("mode", "fake");
     jsonl_path_ = declare_parameter<std::string>("jsonl_path", "");
     frame_id_ = declare_parameter<std::string>("frame_id", "mmwave_link");
     publish_rate_hz_ = declare_parameter<double>("publish_rate_hz", 10.0);
     t0_ = now();
 
-    pub_ = create_publisher<ev_ads_interfaces::msg::MmWaveVital>(
+    pub_ = create_publisher<ev_ads_runtime_cpp::msg::MmWaveVital>(
         topics_.mmwave_vital, rclcpp::QoS(10));
 
     if (mode_ == "jsonl" && !jsonl_path_.empty()) {
@@ -57,7 +58,7 @@ class MmWaveNodeCpp final : public rclcpp::Node {
 
     timer_ = create_wall_timer(
         std::chrono::duration<double>(1.0 / std::max(1.0, publish_rate_hz_)),
-        std::bind(&MmWaveNodeCpp::tick, this));
+        std::bind(&MmWaveVitalNode::tick, this));
 
     RCLCPP_INFO(get_logger(), "毫米波 C++ 节点启动，模式=%s", mode_.c_str());
     if (mode_ == "ble") {
@@ -68,8 +69,8 @@ class MmWaveNodeCpp final : public rclcpp::Node {
   }
 
  private:
-  ev_ads_interfaces::msg::MmWaveVital make_base_msg(uint8_t health) {
-    ev_ads_interfaces::msg::MmWaveVital msg;
+  ev_ads_runtime_cpp::msg::MmWaveVital make_base_msg(uint8_t health) {
+    ev_ads_runtime_cpp::msg::MmWaveVital msg;
     msg.header.stamp = now();
     msg.header.frame_id = frame_id_;
     msg.seq = ++seq_;
@@ -80,7 +81,7 @@ class MmWaveNodeCpp final : public rclcpp::Node {
     return msg;
   }
 
-  ev_ads_interfaces::msg::MmWaveVital fake_msg() {
+  ev_ads_runtime_cpp::msg::MmWaveVital fake_msg() {
     const double t = (now() - t0_).seconds();
     auto msg = make_base_msg(HEALTH_OK);
     msg.breath_rate = static_cast<float>(16.0 + 2.0 * std::sin(2.0 * M_PI * 0.10 * t));
@@ -91,7 +92,7 @@ class MmWaveNodeCpp final : public rclcpp::Node {
     return msg;
   }
 
-  ev_ads_interfaces::msg::MmWaveVital json_msg() {
+  ev_ads_runtime_cpp::msg::MmWaveVital json_msg() {
     std::string line;
     if (!jsonl_.is_open() || !std::getline(jsonl_, line)) {
       return make_base_msg(HEALTH_DISCONNECTED);
@@ -146,7 +147,7 @@ class MmWaveNodeCpp final : public rclcpp::Node {
   uint32_t parse_error_count_{0};
   std::ifstream jsonl_;
   rclcpp::Time t0_{0, 0, RCL_ROS_TIME};
-  rclcpp::Publisher<ev_ads_interfaces::msg::MmWaveVital>::SharedPtr pub_;
+  rclcpp::Publisher<ev_ads_runtime_cpp::msg::MmWaveVital>::SharedPtr pub_;
   rclcpp::TimerBase::SharedPtr timer_;
 };
 
@@ -154,7 +155,7 @@ class MmWaveNodeCpp final : public rclcpp::Node {
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::MmWaveNodeCpp>());
+  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::MmWaveVitalNode>());
   rclcpp::shutdown();
   return 0;
 }

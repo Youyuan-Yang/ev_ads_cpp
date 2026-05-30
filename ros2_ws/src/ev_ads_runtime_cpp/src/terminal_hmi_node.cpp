@@ -1,3 +1,4 @@
+// 终端 HMI 节点：把风险等级、传感器状态和告警信息打印到控制台。
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -6,15 +7,15 @@
 #include <sstream>
 #include <string>
 
-#include "ev_ads_interfaces/msg/blind_spot_state.hpp"
-#include "ev_ads_interfaces/msg/brake_command.hpp"
-#include "ev_ads_interfaces/msg/driver_state.hpp"
-#include "ev_ads_interfaces/msg/front_risk.hpp"
-#include "ev_ads_interfaces/msg/mm_wave_vital.hpp"
-#include "ev_ads_interfaces/msg/risk_state.hpp"
-#include "ev_ads_interfaces/msg/vehicle_motion.hpp"
-#include "ev_ads_interfaces/msg/warning_command.hpp"
-#include "ev_ads_runtime_cpp/types.hpp"
+#include "ev_ads_runtime_cpp/msg/blind_spot_state.hpp"
+#include "ev_ads_runtime_cpp/msg/brake_command.hpp"
+#include "ev_ads_runtime_cpp/msg/driver_state.hpp"
+#include "ev_ads_runtime_cpp/msg/front_risk.hpp"
+#include "ev_ads_runtime_cpp/msg/mm_wave_vital.hpp"
+#include "ev_ads_runtime_cpp/msg/risk_state.hpp"
+#include "ev_ads_runtime_cpp/msg/vehicle_motion.hpp"
+#include "ev_ads_runtime_cpp/msg/warning_command.hpp"
+#include "ev_ads_runtime_cpp/domain_types.hpp"
 #include "ev_ads_runtime_cpp/topics.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -53,23 +54,23 @@ const char* level_color(uint8_t level) {
 
 }  // 匿名命名空间
 
-class HmiNodeCpp final : public rclcpp::Node {
+class TerminalHmiNode final : public rclcpp::Node {
  public:
-  HmiNodeCpp() : Node("hmi_node_cpp") {
+  TerminalHmiNode() : Node("terminal_hmi_node") {
     const double rate = declare_parameter<double>("dashboard_rate_hz", 2.0);
-    risk_sub_ = create_subscription<ev_ads_interfaces::msg::RiskState>(
+    risk_sub_ = create_subscription<ev_ads_runtime_cpp::msg::RiskState>(
         topics_.risk_state, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::RiskState::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::RiskState::SharedPtr msg) {
           on_risk(*msg);
         });
-    warning_sub_ = create_subscription<ev_ads_interfaces::msg::WarningCommand>(
+    warning_sub_ = create_subscription<ev_ads_runtime_cpp::msg::WarningCommand>(
         topics_.warning_cmd, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::WarningCommand::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::WarningCommand::SharedPtr msg) {
           on_warning(*msg);
         });
-    brake_sub_ = create_subscription<ev_ads_interfaces::msg::BrakeCommand>(
+    brake_sub_ = create_subscription<ev_ads_runtime_cpp::msg::BrakeCommand>(
         topics_.brake_cmd, rclcpp::QoS(1),
-        [this](ev_ads_interfaces::msg::BrakeCommand::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::BrakeCommand::SharedPtr msg) {
           brake_ = *msg;
           has_brake_ = true;
           if (msg->enable) {
@@ -82,44 +83,44 @@ class HmiNodeCpp final : public rclcpp::Node {
                 msg->safety_gates_passed);
           }
         });
-    front_sub_ = create_subscription<ev_ads_interfaces::msg::FrontRisk>(
+    front_sub_ = create_subscription<ev_ads_runtime_cpp::msg::FrontRisk>(
         topics_.front_risk, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::FrontRisk::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::FrontRisk::SharedPtr msg) {
           front_ = *msg;
           has_front_ = true;
         });
-    rear_sub_ = create_subscription<ev_ads_interfaces::msg::BlindSpotState>(
+    rear_sub_ = create_subscription<ev_ads_runtime_cpp::msg::BlindSpotState>(
         topics_.blind_spot, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::BlindSpotState::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::BlindSpotState::SharedPtr msg) {
           rear_ = *msg;
           has_rear_ = true;
         });
-    driver_sub_ = create_subscription<ev_ads_interfaces::msg::DriverState>(
+    driver_sub_ = create_subscription<ev_ads_runtime_cpp::msg::DriverState>(
         topics_.driver_state, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::DriverState::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::DriverState::SharedPtr msg) {
           driver_ = *msg;
           has_driver_ = true;
         });
-    motion_sub_ = create_subscription<ev_ads_interfaces::msg::VehicleMotion>(
+    motion_sub_ = create_subscription<ev_ads_runtime_cpp::msg::VehicleMotion>(
         topics_.vehicle_motion, rclcpp::QoS(50),
-        [this](ev_ads_interfaces::msg::VehicleMotion::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::VehicleMotion::SharedPtr msg) {
           motion_ = *msg;
           has_motion_ = true;
         });
-    mmwave_sub_ = create_subscription<ev_ads_interfaces::msg::MmWaveVital>(
+    mmwave_sub_ = create_subscription<ev_ads_runtime_cpp::msg::MmWaveVital>(
         topics_.mmwave_vital, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::MmWaveVital::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::MmWaveVital::SharedPtr msg) {
           mmwave_ = *msg;
           has_mmwave_ = true;
         });
     timer_ = create_wall_timer(
         std::chrono::duration<double>(1.0 / std::max(0.5, rate)),
-        std::bind(&HmiNodeCpp::dashboard, this));
+        std::bind(&TerminalHmiNode::dashboard, this));
     RCLCPP_INFO(get_logger(), "C++ 终端 HMI 已启动");
   }
 
  private:
-  void on_risk(const ev_ads_interfaces::msg::RiskState& msg) {
+  void on_risk(const ev_ads_runtime_cpp::msg::RiskState& msg) {
     risk_ = msg;
     has_risk_ = true;
     if (last_level_ < 0 || msg.level != static_cast<uint8_t>(last_level_)) {
@@ -134,7 +135,7 @@ class HmiNodeCpp final : public rclcpp::Node {
     }
   }
 
-  void on_warning(const ev_ads_interfaces::msg::WarningCommand& msg) {
+  void on_warning(const ev_ads_runtime_cpp::msg::WarningCommand& msg) {
     RCLCPP_WARN(
         get_logger(),
         "告警 L%u: %s icon=%s beep=%uHz vib=%u duration=%ums",
@@ -196,21 +197,21 @@ class HmiNodeCpp final : public rclcpp::Node {
   bool has_motion_{false};
   bool has_mmwave_{false};
   bool has_brake_{false};
-  ev_ads_interfaces::msg::RiskState risk_;
-  ev_ads_interfaces::msg::FrontRisk front_;
-  ev_ads_interfaces::msg::BlindSpotState rear_;
-  ev_ads_interfaces::msg::DriverState driver_;
-  ev_ads_interfaces::msg::VehicleMotion motion_;
-  ev_ads_interfaces::msg::MmWaveVital mmwave_;
-  ev_ads_interfaces::msg::BrakeCommand brake_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::RiskState>::SharedPtr risk_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::WarningCommand>::SharedPtr warning_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::BrakeCommand>::SharedPtr brake_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::FrontRisk>::SharedPtr front_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::BlindSpotState>::SharedPtr rear_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::DriverState>::SharedPtr driver_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::VehicleMotion>::SharedPtr motion_sub_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::MmWaveVital>::SharedPtr mmwave_sub_;
+  ev_ads_runtime_cpp::msg::RiskState risk_;
+  ev_ads_runtime_cpp::msg::FrontRisk front_;
+  ev_ads_runtime_cpp::msg::BlindSpotState rear_;
+  ev_ads_runtime_cpp::msg::DriverState driver_;
+  ev_ads_runtime_cpp::msg::VehicleMotion motion_;
+  ev_ads_runtime_cpp::msg::MmWaveVital mmwave_;
+  ev_ads_runtime_cpp::msg::BrakeCommand brake_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::RiskState>::SharedPtr risk_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::WarningCommand>::SharedPtr warning_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::BrakeCommand>::SharedPtr brake_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::FrontRisk>::SharedPtr front_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::BlindSpotState>::SharedPtr rear_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::DriverState>::SharedPtr driver_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::VehicleMotion>::SharedPtr motion_sub_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::MmWaveVital>::SharedPtr mmwave_sub_;
   rclcpp::TimerBase::SharedPtr timer_;
 };
 
@@ -218,7 +219,7 @@ class HmiNodeCpp final : public rclcpp::Node {
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::HmiNodeCpp>());
+  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::TerminalHmiNode>());
   rclcpp::shutdown();
   return 0;
 }

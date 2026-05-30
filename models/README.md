@@ -29,7 +29,7 @@ models/
 - 备份模型 SHA256：`0faa933b20bd457fffa7bb8284fd4ddf55e91c2a768c0af7083a409e70557da9`。
 - Homebrew OpenCV 4.13.0 可成功加载默认模型，输出层为 `output0`。
 - 项目检测器已验证空白图推理结果为 0 个检测。
-- 项目 `yolo_onnx.cpp` 兼容标准 YOLO 输出，也兼容备份模型的 `x1,y1,x2,y2,score,class_id` 输出格式。
+- 项目 `onnx_yolo_detector.cpp` 兼容标准 YOLO 输出，也兼容备份模型的 `x1,y1,x2,y2,score,class_id` 输出格式。
 - 驾驶员人脸模型：`models/onnx/driver_face_yunet.onnx`，来源为 OpenCV Zoo YuNet，Apache 2.0，用于人脸可见、脸框位置和粗略注意力判断。
 - `driver_face_yunet.onnx` SHA256：`8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4`。
 - 驾驶员 DMS 模型：`models/onnx/driver_dms_yolo.onnx`，来源为 SafeDrive `yolo_safedrive.pt` 导出，MIT 许可证，类别为 `eye_open/eye_half/eye_closed/mouth_open/mouth_closed/phone/cigarette/seatbelt_on/seatbelt_off`。
@@ -65,7 +65,7 @@ models/onnx/rear_yolo.onnx
 7 truck
 ```
 
-C++ 节点会按目标框高度估算距离，再按连续帧距离变化估算靠近速度。由于后置摄像头是鱼眼镜头，`rear_node_cpp` 已加入 OpenCV fisheye 去畸变入口。真实使用时必须先用棋盘格/圆点板标定 `fisheye_k` 和 `fisheye_d`，再打开 `fisheye_undistort`。
+C++ 节点会按目标框高度估算距离，再按连续帧距离变化估算靠近速度。由于后置摄像头是鱼眼镜头，`rear_blind_spot_node` 已加入 OpenCV fisheye 去畸变入口。真实使用时必须先用棋盘格/圆点板标定 `fisheye_k` 和 `fisheye_d`，再打开 `fisheye_undistort`。
 
 ## 4. 驾驶员监测模型
 
@@ -95,7 +95,7 @@ SafeDrive DMS 类别 ID：
 8 seatbelt_off
 ```
 
-项目默认参数在 `ros2_ws/src/ev_ads_runtime_cpp/config/driver_monitor.yaml`：
+项目默认参数在根目录 `config/ev_ads_runtime.launch.xml` 的 `driver_attention` 节点中：
 
 ```text
 open_eye_class_ids: [0]
@@ -129,6 +129,6 @@ models/onnx/front_road_hazard.onnx
 2. 标定后置鱼眼 `fisheye_k`、`fisheye_d`。
 3. 开启 `fisheye_undistort` 后重新标定 `distance_focal_px`。
 4. 用真实驾驶员摄像头验证 `driver_face_yunet.onnx` 与 `driver_dms_yolo.onnx`，重点检查闭眼、半闭眼、哈欠、手机和夜间补光场景。
-5. 前置模型训练完成后再接入 `front_node_cpp`。
+5. 前置模型训练完成后再接入 `front_risk_node`。
 6. ONNX 功能稳定后转 RKNN，并把启动参数切到 RKNN 后端。
 7. 每个模型必须记录文件 hash、输入尺寸、类别表、阈值、测试集指标和许可证。

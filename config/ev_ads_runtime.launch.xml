@@ -10,10 +10,10 @@
   <arg name="rear_camera_device" default="/dev/v4l/by-id/usb-DH-200W-X1-video-index0"/>
   <arg name="driver_camera_device" default="/dev/v4l/by-id/usb-Driver_Cam-video-index0"/>
 
-  <!-- ONNX 模型路径。空路径表示对应模型不启用。 -->
-  <arg name="rear_model_path" default=""/>
-  <arg name="driver_model_path" default=""/>
-  <arg name="driver_face_model_path" default=""/>
+  <!-- ONNX 模型路径。默认指向随 ev_ads_runtime_cpp 一起安装的模型文件。 -->
+  <arg name="rear_model_path" default="$(find-pkg-share ev_ads_runtime_cpp)/models/onnx/rear_yolo.onnx"/>
+  <arg name="driver_model_path" default="$(find-pkg-share ev_ads_runtime_cpp)/models/onnx/driver_dms_yolo.onnx"/>
+  <arg name="driver_face_model_path" default="$(find-pkg-share ev_ads_runtime_cpp)/models/onnx/driver_face_yunet.onnx"/>
 
   <!-- 融合模型默认使用城市白天参数；需要夜间/长途时直接覆盖这些 launch 参数。 -->
   <arg name="fusion_profile" default="urban_day"/>
@@ -32,16 +32,16 @@
   <arg name="event_storage_backend" default="sqlite"/>
   <arg name="event_log_path" default="/tmp/ev_ads/events.sqlite"/>
 
-  <node pkg="ev_ads_runtime_cpp" exec="mmwave_node_cpp" name="mmwave_node" output="screen" if="$(var use_fakes)">
+  <node pkg="ev_ads_runtime_cpp" exec="mmwave_vital_node" name="mmwave_vital" output="screen" if="$(var use_fakes)">
     <param name="mode" value="fake"/>
     <param name="publish_rate_hz" value="10.0"/>
   </node>
-  <node pkg="ev_ads_runtime_cpp" exec="mmwave_node_cpp" name="mmwave_node" output="screen" unless="$(var use_fakes)">
+  <node pkg="ev_ads_runtime_cpp" exec="mmwave_vital_node" name="mmwave_vital" output="screen" unless="$(var use_fakes)">
     <param name="mode" value="$(var mmwave_mode)"/>
     <param name="publish_rate_hz" value="10.0"/>
   </node>
 
-  <node pkg="ev_ads_runtime_cpp" exec="camera_node_cpp" name="camera_front" output="screen" if="$(var use_fakes)">
+  <node pkg="ev_ads_runtime_cpp" exec="camera_capture_node" name="camera_front" output="screen" if="$(var use_fakes)">
     <param name="name" value="front"/>
     <param name="mode" value="fake"/>
     <param name="device" value="$(var front_camera_device)"/>
@@ -51,7 +51,7 @@
     <param name="pixel_format" value="MJPG"/>
     <param name="jpeg_quality" value="80"/>
   </node>
-  <node pkg="ev_ads_runtime_cpp" exec="camera_node_cpp" name="camera_front" output="screen" unless="$(var use_fakes)">
+  <node pkg="ev_ads_runtime_cpp" exec="camera_capture_node" name="camera_front" output="screen" unless="$(var use_fakes)">
     <param name="name" value="front"/>
     <param name="mode" value="device"/>
     <param name="device" value="$(var front_camera_device)"/>
@@ -62,7 +62,7 @@
     <param name="jpeg_quality" value="80"/>
   </node>
 
-  <node pkg="ev_ads_runtime_cpp" exec="camera_node_cpp" name="camera_rear" output="screen" if="$(var use_fakes)">
+  <node pkg="ev_ads_runtime_cpp" exec="camera_capture_node" name="camera_rear" output="screen" if="$(var use_fakes)">
     <param name="name" value="rear"/>
     <param name="mode" value="fake"/>
     <param name="device" value="$(var rear_camera_device)"/>
@@ -72,7 +72,7 @@
     <param name="pixel_format" value="MJPG"/>
     <param name="jpeg_quality" value="80"/>
   </node>
-  <node pkg="ev_ads_runtime_cpp" exec="camera_node_cpp" name="camera_rear" output="screen" unless="$(var use_fakes)">
+  <node pkg="ev_ads_runtime_cpp" exec="camera_capture_node" name="camera_rear" output="screen" unless="$(var use_fakes)">
     <param name="name" value="rear"/>
     <param name="mode" value="device"/>
     <param name="device" value="$(var rear_camera_device)"/>
@@ -83,7 +83,7 @@
     <param name="jpeg_quality" value="80"/>
   </node>
 
-  <node pkg="ev_ads_runtime_cpp" exec="camera_node_cpp" name="camera_driver" output="screen" if="$(var use_fakes)">
+  <node pkg="ev_ads_runtime_cpp" exec="camera_capture_node" name="camera_driver" output="screen" if="$(var use_fakes)">
     <param name="name" value="driver"/>
     <param name="mode" value="fake"/>
     <param name="device" value="$(var driver_camera_device)"/>
@@ -93,7 +93,7 @@
     <param name="pixel_format" value="MJPG"/>
     <param name="jpeg_quality" value="80"/>
   </node>
-  <node pkg="ev_ads_runtime_cpp" exec="camera_node_cpp" name="camera_driver" output="screen" unless="$(var use_fakes)">
+  <node pkg="ev_ads_runtime_cpp" exec="camera_capture_node" name="camera_driver" output="screen" unless="$(var use_fakes)">
     <param name="name" value="driver"/>
     <param name="mode" value="device"/>
     <param name="device" value="$(var driver_camera_device)"/>
@@ -104,7 +104,7 @@
     <param name="jpeg_quality" value="80"/>
   </node>
 
-  <node pkg="ev_ads_runtime_cpp" exec="imu_node_cpp" name="imu_node" output="screen" if="$(var use_fakes)">
+  <node pkg="ev_ads_runtime_cpp" exec="imu_motion_node" name="imu_motion" output="screen" if="$(var use_fakes)">
     <param name="driver" value="fake"/>
     <param name="port" value="/dev/ttyUSB0"/>
     <param name="baud" value="921600"/>
@@ -120,7 +120,7 @@
     <param name="bump_jerk" value="30.0"/>
     <param name="frame_id" value="imu_link"/>
   </node>
-  <node pkg="ev_ads_runtime_cpp" exec="imu_node_cpp" name="imu_node" output="screen" unless="$(var use_fakes)">
+  <node pkg="ev_ads_runtime_cpp" exec="imu_motion_node" name="imu_motion" output="screen" unless="$(var use_fakes)">
     <param name="driver" value="$(var imu_driver)"/>
     <param name="port" value="/dev/ttyUSB0"/>
     <param name="baud" value="921600"/>
@@ -137,14 +137,14 @@
     <param name="frame_id" value="imu_link"/>
   </node>
 
-  <node pkg="ev_ads_runtime_cpp" exec="front_node_cpp" name="front_perception_node" output="screen">
+  <node pkg="ev_ads_runtime_cpp" exec="front_risk_node" name="front_risk" output="screen">
     <param name="publish_rate_hz" value="10.0"/>
     <param name="fake_mode" value="$(var perception_mode)"/>
     <param name="require_camera_health" value="true"/>
     <param name="camera_timeout_ms" value="1000"/>
   </node>
 
-  <node pkg="ev_ads_runtime_cpp" exec="rear_node_cpp" name="rear_perception_node" output="screen">
+  <node pkg="ev_ads_runtime_cpp" exec="rear_blind_spot_node" name="rear_blind_spot" output="screen">
     <param name="publish_rate_hz" value="10.0"/>
     <param name="fake_mode" value="$(var perception_mode)"/>
     <param name="require_camera_health" value="true"/>
@@ -167,7 +167,7 @@
     <param name="fisheye_fov_scale" value="1.0"/>
   </node>
 
-  <node pkg="ev_ads_runtime_cpp" exec="driver_monitor_node_cpp" name="driver_monitor_node" output="screen">
+  <node pkg="ev_ads_runtime_cpp" exec="driver_attention_node" name="driver_attention" output="screen">
     <param name="publish_rate_hz" value="10.0"/>
     <param name="fake_mode" value="$(var perception_mode)"/>
     <param name="require_camera_health" value="true"/>
@@ -198,7 +198,7 @@
     <param name="face_absence_score" value="0.65"/>
   </node>
 
-  <node pkg="ev_ads_runtime_cpp" exec="fusion_node_cpp" name="fusion_node" output="screen">
+  <node pkg="ev_ads_runtime_cpp" exec="risk_fusion_node" name="risk_fusion" output="screen">
     <param name="publish_rate_hz" value="20.0"/>
     <param name="profile" value="$(var fusion_profile)"/>
     <param name="w_front" value="$(var w_front)" type="double"/>
@@ -233,11 +233,11 @@
     <param name="mmwave_disc_ms" value="3000"/>
   </node>
 
-  <node pkg="ev_ads_runtime_cpp" exec="hmi_node_cpp" name="hmi_node" output="screen">
+  <node pkg="ev_ads_runtime_cpp" exec="terminal_hmi_node" name="terminal_hmi" output="screen">
     <param name="dashboard_rate_hz" value="2.0"/>
   </node>
 
-  <node pkg="ev_ads_runtime_cpp" exec="event_logger_node_cpp" name="event_logger_node" output="screen">
+  <node pkg="ev_ads_runtime_cpp" exec="event_recorder_node" name="event_recorder" output="screen">
     <param name="storage_backend" value="$(var event_storage_backend)"/>
     <param name="log_path" value="$(var event_log_path)"/>
     <param name="flush_every_n" value="32"/>

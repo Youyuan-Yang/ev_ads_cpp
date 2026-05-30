@@ -51,7 +51,7 @@ RK3588 RTC 没电时开机默认时间是 2013-01-01。本脚本：
 | 想做的事 | 改哪 |
 |----------|------|
 | 改 WiFi | `ev_ads_boot.sh` 顶部 `WIFI_SSID` / `WIFI_PASSWORD` |
-| 跑 fake 模式（无硬件） | `ev_ads_boot.sh` 底部 `LAUNCH_CMD=` 切到 `ev_ads_cpp_runtime.launch.xml use_fakes:=true` |
+| 跑 fake 模式（无硬件） | `ev_ads_boot.sh` 底部 `LAUNCH_CMD=` 切到 `ev_ads_runtime.launch.xml use_fakes:=true` |
 | 开真实制动 | `ev_ads_boot.sh` 底部 `LAUNCH_CMD=` 切到 `enable_real_brake:=true` |
 | 换 ros launch | 改 `LAUNCH_CMD=(...)` |
 | 关闭开机自启 | `sudo systemctl disable ev-ads.service` |

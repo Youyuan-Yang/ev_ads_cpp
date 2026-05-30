@@ -1,3 +1,4 @@
+// 多模态风险融合节点：汇总前向、后向、DMS、IMU、毫米波并输出告警/制动门控。
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -7,16 +8,16 @@
 #include <string>
 #include <vector>
 
-#include "ev_ads_interfaces/msg/blind_spot_state.hpp"
-#include "ev_ads_interfaces/msg/brake_command.hpp"
-#include "ev_ads_interfaces/msg/driver_state.hpp"
-#include "ev_ads_interfaces/msg/front_risk.hpp"
-#include "ev_ads_interfaces/msg/mm_wave_vital.hpp"
-#include "ev_ads_interfaces/msg/risk_state.hpp"
-#include "ev_ads_interfaces/msg/vehicle_motion.hpp"
-#include "ev_ads_interfaces/msg/warning_command.hpp"
-#include "ev_ads_runtime_cpp/common.hpp"
-#include "ev_ads_runtime_cpp/fusion_core.hpp"
+#include "ev_ads_runtime_cpp/msg/blind_spot_state.hpp"
+#include "ev_ads_runtime_cpp/msg/brake_command.hpp"
+#include "ev_ads_runtime_cpp/msg/driver_state.hpp"
+#include "ev_ads_runtime_cpp/msg/front_risk.hpp"
+#include "ev_ads_runtime_cpp/msg/mm_wave_vital.hpp"
+#include "ev_ads_runtime_cpp/msg/risk_state.hpp"
+#include "ev_ads_runtime_cpp/msg/vehicle_motion.hpp"
+#include "ev_ads_runtime_cpp/msg/warning_command.hpp"
+#include "ev_ads_runtime_cpp/risk_math.hpp"
+#include "ev_ads_runtime_cpp/risk_fusion_core.hpp"
 #include "ev_ads_runtime_cpp/runtime_config.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -76,58 +77,58 @@ FusionConfig read_fusion_config(rclcpp::Node* node) {
 
 }  // namespace
 
-class FusionNodeCpp final : public rclcpp::Node {
+class RiskFusionNode final : public rclcpp::Node {
  public:
-  FusionNodeCpp() : Node("fusion_node_cpp"), config_(read_fusion_config(this)), core_(config_) {
-    sub_front_ = create_subscription<ev_ads_interfaces::msg::FrontRisk>(
+  RiskFusionNode() : Node("risk_fusion_node"), config_(read_fusion_config(this)), core_(config_) {
+    sub_front_ = create_subscription<ev_ads_runtime_cpp::msg::FrontRisk>(
         topics_.front_risk, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::FrontRisk::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::FrontRisk::SharedPtr msg) {
           snap_.front = msg->risk_score;
           snap_.front_health = health_from_ros(msg->health);
           snap_.front_ttc = msg->ttc >= 1e5f ? std::numeric_limits<double>::infinity() : msg->ttc;
           snap_.front_class = object_class_from_ros(msg->primary_class);
           seen_.front = now();
         });
-    sub_rear_ = create_subscription<ev_ads_interfaces::msg::BlindSpotState>(
+    sub_rear_ = create_subscription<ev_ads_runtime_cpp::msg::BlindSpotState>(
         topics_.blind_spot, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::BlindSpotState::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::BlindSpotState::SharedPtr msg) {
           snap_.rear = msg->risk_score;
           snap_.rear_health = health_from_ros(msg->health);
           snap_.rear_zone_left = zone_from_ros(msg->zone_left);
           snap_.rear_zone_right = zone_from_ros(msg->zone_right);
           seen_.rear = now();
         });
-    sub_driver_ = create_subscription<ev_ads_interfaces::msg::DriverState>(
+    sub_driver_ = create_subscription<ev_ads_runtime_cpp::msg::DriverState>(
         topics_.driver_state, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::DriverState::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::DriverState::SharedPtr msg) {
           snap_.driver = msg->fatigue_score;
           snap_.driver_health = health_from_ros(msg->health);
           seen_.driver = now();
         });
-    sub_motion_ = create_subscription<ev_ads_interfaces::msg::VehicleMotion>(
+    sub_motion_ = create_subscription<ev_ads_runtime_cpp::msg::VehicleMotion>(
         topics_.vehicle_motion, rclcpp::QoS(50),
-        [this](ev_ads_interfaces::msg::VehicleMotion::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::VehicleMotion::SharedPtr msg) {
           snap_.imu = imu_score(msg->motion_flags);
           snap_.imu_health = health_from_ros(msg->health);
           seen_.imu = now();
         });
-    sub_mmwave_ = create_subscription<ev_ads_interfaces::msg::MmWaveVital>(
+    sub_mmwave_ = create_subscription<ev_ads_runtime_cpp::msg::MmWaveVital>(
         topics_.mmwave_vital, rclcpp::QoS(10),
-        [this](ev_ads_interfaces::msg::MmWaveVital::SharedPtr msg) {
+        [this](ev_ads_runtime_cpp::msg::MmWaveVital::SharedPtr msg) {
           snap_.mmwave = mmwave_score(msg->heart_rate, msg->breath_rate, msg->confidence);
           snap_.mmwave_health = health_from_ros(msg->health);
           seen_.mmwave = now();
         });
 
-    pub_risk_ = create_publisher<ev_ads_interfaces::msg::RiskState>(topics_.risk_state, rclcpp::QoS(10));
+    pub_risk_ = create_publisher<ev_ads_runtime_cpp::msg::RiskState>(topics_.risk_state, rclcpp::QoS(10));
     pub_warn_ =
-        create_publisher<ev_ads_interfaces::msg::WarningCommand>(topics_.warning_cmd, rclcpp::QoS(10));
+        create_publisher<ev_ads_runtime_cpp::msg::WarningCommand>(topics_.warning_cmd, rclcpp::QoS(10));
     pub_brake_ =
-        create_publisher<ev_ads_interfaces::msg::BrakeCommand>(topics_.brake_cmd, rclcpp::QoS(1));
+        create_publisher<ev_ads_runtime_cpp::msg::BrakeCommand>(topics_.brake_cmd, rclcpp::QoS(1));
 
     timer_ = create_wall_timer(
         std::chrono::duration<double>(1.0 / std::max(1.0, config_.publish_rate_hz)),
-        std::bind(&FusionNodeCpp::tick, this));
+        std::bind(&RiskFusionNode::tick, this));
 
     RCLCPP_INFO(
         get_logger(),
@@ -181,7 +182,7 @@ class FusionNodeCpp final : public rclcpp::Node {
       return;
     }
 
-    ev_ads_interfaces::msg::WarningCommand msg;
+    ev_ads_runtime_cpp::msg::WarningCommand msg;
     msg.header = header;
     msg.level = to_ros(decision.level);
     msg.voice_text = voice_text_for_reason(decision.primary_reason);
@@ -196,7 +197,7 @@ class FusionNodeCpp final : public rclcpp::Node {
   }
 
   void publish_brake(const FusionDecision& decision, const FusionSnapshot& s, const std_msgs::msg::Header& header) {
-    ev_ads_interfaces::msg::BrakeCommand msg;
+    ev_ads_runtime_cpp::msg::BrakeCommand msg;
     msg.header = header;
     msg.source = decision.primary_reason;
     uint8_t gates = 0;
@@ -227,7 +228,7 @@ class FusionNodeCpp final : public rclcpp::Node {
     const FusionSnapshot s = fresh_snapshot();
     const FusionDecision decision = core_.decide(s);
 
-    ev_ads_interfaces::msg::RiskState risk;
+    ev_ads_runtime_cpp::msg::RiskState risk;
     risk.header.stamp = now();
     risk.header.frame_id = "vehicle";
     risk.level = to_ros(decision.level);
@@ -249,14 +250,14 @@ class FusionNodeCpp final : public rclcpp::Node {
   SeenTimes seen_;
   WarningLevel last_voice_level_{WarningLevel::kL0};
 
-  rclcpp::Publisher<ev_ads_interfaces::msg::RiskState>::SharedPtr pub_risk_;
-  rclcpp::Publisher<ev_ads_interfaces::msg::WarningCommand>::SharedPtr pub_warn_;
-  rclcpp::Publisher<ev_ads_interfaces::msg::BrakeCommand>::SharedPtr pub_brake_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::FrontRisk>::SharedPtr sub_front_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::BlindSpotState>::SharedPtr sub_rear_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::DriverState>::SharedPtr sub_driver_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::VehicleMotion>::SharedPtr sub_motion_;
-  rclcpp::Subscription<ev_ads_interfaces::msg::MmWaveVital>::SharedPtr sub_mmwave_;
+  rclcpp::Publisher<ev_ads_runtime_cpp::msg::RiskState>::SharedPtr pub_risk_;
+  rclcpp::Publisher<ev_ads_runtime_cpp::msg::WarningCommand>::SharedPtr pub_warn_;
+  rclcpp::Publisher<ev_ads_runtime_cpp::msg::BrakeCommand>::SharedPtr pub_brake_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::FrontRisk>::SharedPtr sub_front_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::BlindSpotState>::SharedPtr sub_rear_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::DriverState>::SharedPtr sub_driver_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::VehicleMotion>::SharedPtr sub_motion_;
+  rclcpp::Subscription<ev_ads_runtime_cpp::msg::MmWaveVital>::SharedPtr sub_mmwave_;
   rclcpp::TimerBase::SharedPtr timer_;
 };
 
@@ -264,7 +265,7 @@ class FusionNodeCpp final : public rclcpp::Node {
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::FusionNodeCpp>());
+  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::RiskFusionNode>());
   rclcpp::shutdown();
   return 0;
 }

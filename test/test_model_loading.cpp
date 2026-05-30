@@ -7,7 +7,7 @@
 #include <opencv2/objdetect.hpp>
 #include <opencv2/opencv.hpp>
 
-#include "ev_ads_runtime_cpp/yolo_onnx.hpp"
+#include "ev_ads_runtime_cpp/onnx_yolo_detector.hpp"
 
 using ev_ads_runtime_cpp::YoloOnnxDetector;
 

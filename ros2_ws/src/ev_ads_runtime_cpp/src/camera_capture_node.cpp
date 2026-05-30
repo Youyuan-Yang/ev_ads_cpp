@@ -1,3 +1,4 @@
+// 三路摄像头采集节点：支持真实 V4L2 设备、视频文件和 fake 图像输出。
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -12,16 +13,16 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 
-#include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/risk_math.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/compressed_image.hpp"
 #include "std_msgs/msg/u_int8.hpp"
 
 namespace ev_ads_runtime_cpp {
 
-class CameraNodeCpp final : public rclcpp::Node {
+class CameraCaptureNode final : public rclcpp::Node {
  public:
-  CameraNodeCpp() : Node("camera_node_cpp") {
+  CameraCaptureNode() : Node("camera_capture_node") {
     name_ = declare_parameter<std::string>("name", "front");
     mode_ = declare_parameter<std::string>("mode", "device");
     device_ = declare_parameter<std::string>("device", "/dev/video0");
@@ -40,7 +41,7 @@ class CameraNodeCpp final : public rclcpp::Node {
     pub_image_ = create_publisher<sensor_msgs::msg::CompressedImage>(
         topic_ns + "/image_raw/compressed", qos);
     pub_health_ = create_publisher<std_msgs::msg::UInt8>(topic_ns + "/health", rclcpp::QoS(1));
-    health_timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&CameraNodeCpp::health_tick, this));
+    health_timer_ = create_wall_timer(std::chrono::seconds(1), std::bind(&CameraCaptureNode::health_tick, this));
 
     worker_ = std::thread([this]() { capture_loop(); });
     RCLCPP_INFO(
@@ -54,7 +55,7 @@ class CameraNodeCpp final : public rclcpp::Node {
         topic_ns.c_str());
   }
 
-  ~CameraNodeCpp() override {
+  ~CameraCaptureNode() override {
     stop_.store(true);
     if (worker_.joinable()) {
       worker_.join();
@@ -215,7 +216,7 @@ class CameraNodeCpp final : public rclcpp::Node {
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::CameraNodeCpp>());
+  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::CameraCaptureNode>());
   rclcpp::shutdown();
   return 0;
 }

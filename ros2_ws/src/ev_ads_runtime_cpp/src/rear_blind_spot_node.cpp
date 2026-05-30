@@ -1,3 +1,4 @@
+// 后置鱼眼盲区节点：YOLO 检测 + 鱼眼去畸变 + 三分区靠近速度预警。
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -11,10 +12,10 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
-#include "ev_ads_interfaces/msg/blind_spot_state.hpp"
-#include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/msg/blind_spot_state.hpp"
+#include "ev_ads_runtime_cpp/risk_math.hpp"
 #include "ev_ads_runtime_cpp/runtime_config.hpp"
-#include "ev_ads_runtime_cpp/yolo_onnx.hpp"
+#include "ev_ads_runtime_cpp/onnx_yolo_detector.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/compressed_image.hpp"
 #include "std_msgs/msg/float32_multi_array.hpp"
@@ -89,12 +90,12 @@ struct RearObservation {
   double rv = 0.0;
 };
 
-class RearNodeCpp final : public rclcpp::Node {
+class RearBlindSpotNode final : public rclcpp::Node {
  public:
-  RearNodeCpp() : Node("rear_perception_node_cpp") {
+  RearBlindSpotNode() : Node("rear_blind_spot_node") {
     config_ = read_rear_config(this);
 
-    pub_ = create_publisher<ev_ads_interfaces::msg::BlindSpotState>(
+    pub_ = create_publisher<ev_ads_runtime_cpp::msg::BlindSpotState>(
         topics_.blind_spot, rclcpp::QoS(10));
     sim_sub_ = create_subscription<std_msgs::msg::Float32MultiArray>(
         topics_.sim_rear_zones,
@@ -123,13 +124,13 @@ class RearNodeCpp final : public rclcpp::Node {
       image_sub_ = create_subscription<sensor_msgs::msg::CompressedImage>(
           RuntimeTopics::image_topic(topics_.camera_rear_ns),
           rclcpp::QoS(rclcpp::KeepLast(1)).best_effort(),
-          std::bind(&RearNodeCpp::image_callback, this, std::placeholders::_1));
+          std::bind(&RearBlindSpotNode::image_callback, this, std::placeholders::_1));
     }
 
     t0_ = now();
     timer_ = create_wall_timer(
         std::chrono::duration<double>(1.0 / std::max(1.0, config_.publish_rate_hz)),
-        std::bind(&RearNodeCpp::tick, this));
+        std::bind(&RearBlindSpotNode::tick, this));
     RCLCPP_INFO(
         get_logger(),
         "后置感知节点启动，模式=%s 模型=%s",
@@ -393,7 +394,7 @@ class RearNodeCpp final : public rclcpp::Node {
         zone_state(obs.rd, obs.rv, config_.approaching_speed_mps, config_.present_max_m);
     const double score = bad_health(health) ? 0.0 : aggregate_rear_risk(ls, cs, rs);
 
-    ev_ads_interfaces::msg::BlindSpotState msg;
+    ev_ads_runtime_cpp::msg::BlindSpotState msg;
     msg.header.stamp = now();
     msg.header.frame_id = "camera_rear";
     msg.zone_left = ls;
@@ -432,7 +433,7 @@ class RearNodeCpp final : public rclcpp::Node {
   rclcpp::Time model_stamp_{0, 0, RCL_ROS_TIME};
   rclcpp::Time t0_{0, 0, RCL_ROS_TIME};
   YoloOnnxDetector detector_;
-  rclcpp::Publisher<ev_ads_interfaces::msg::BlindSpotState>::SharedPtr pub_;
+  rclcpp::Publisher<ev_ads_runtime_cpp::msg::BlindSpotState>::SharedPtr pub_;
   rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr sim_sub_;
   rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr camera_health_sub_;
   rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr image_sub_;
@@ -443,7 +444,7 @@ class RearNodeCpp final : public rclcpp::Node {
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::RearNodeCpp>());
+  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::RearBlindSpotNode>());
   rclcpp::shutdown();
   return 0;
 }

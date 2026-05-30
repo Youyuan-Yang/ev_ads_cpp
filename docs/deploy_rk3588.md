@@ -49,24 +49,24 @@ source install/setup.bash
 
 | 内容 | 文件 |
 |---|---|
-| 摄像头、IMU、融合、后置鱼眼、DMS 阈值 | `ros2_ws/src/ev_ads_runtime_cpp/launch/cpp_runtime.launch.xml` |
+| 摄像头、IMU、融合、后置鱼眼、DMS 阈值 | `config/ev_ads_runtime.launch.xml` |
 | ONNX 模型 | `models/onnx/` |
 | RKNN 模型 | `models/rknn/` |
 
-项目自有运行配置统一写在 ROS2 XML launch 中；不要再新增 YAML/TOML 配置文件。
+项目自有运行配置统一写在根目录 `config/` 中；不要再新增 YAML/TOML 配置文件，也不要把业务配置放回 `ros2_ws/src`。
 
 ## 5. 启动
 
 无硬件：
 
 ```bash
-ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml use_fakes:=true
+ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml use_fakes:=true
 ```
 
 真实硬件：
 
 ```bash
-ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
+ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
   perception_mode:=scripted \
   imu_driver:=i2c \
@@ -76,7 +76,7 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 模型模式：
 
 ```bash
-ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
+ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
   perception_mode:=model \
   rear_model_path:=/opt/ev_ads/models/onnx/rear_yolo.onnx \

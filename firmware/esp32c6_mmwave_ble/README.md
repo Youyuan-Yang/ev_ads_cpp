@@ -42,6 +42,6 @@ EV-ADS mmWave BLE firmware v0.1.0
 ## 5. 调试说明
 
 该项目副本已删除 Python BLE 工具。临时调试可用手机 BLE 调试软件查看
-`EVADAR-C6` 的 GATT notify；板端 C++ 运行链路使用 `mmwave_node_cpp`。
+`EVADAR-C6` 的 GATT notify；板端 C++ 运行链路使用 `mmwave_vital_node`。
 真实 BLE 接收需要在 RK3588 上补接 BlueZ D-Bus 后端，当前 C++ 节点已保留
 `mode:=ble` 入口并在未接通时发布 `DISCONNECTED` 健康状态。

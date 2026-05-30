@@ -13,9 +13,9 @@
 - C++ 驾驶员 YuNet + DMS YOLO ONNX fallback。
 - C++ 多模态融合 v2。
 - C++ HMI、SQLite/WAL 事件记录和毫米波入口。
-- `types.hpp` 统一 enum class，ROS 消息中的 `uint8` 只作为边界编码。
+- `domain_types.hpp` 统一 enum class，ROS 消息中的 `uint8` 只作为边界编码。
 - `topics.hpp` 与 `runtime_config.hpp` 集中话题名和配置对象，减少节点内硬编码。
-- `fusion_core.hpp` 和 `event_store.hpp/cpp` 已能在 Mac 上脱离 ROS 单测。
+- `risk_fusion_core.hpp` 和 `event_store.hpp/cpp` 已能在 Mac 上脱离 ROS 单测。
 
 ## 2. P0：板端验证
 
@@ -31,7 +31,7 @@
 
 - 已补入 `models/onnx/rear_yolo.onnx`。
 - 用真实鱼眼画面验证检测类别和边缘误检。
-- 完成 OpenCV fisheye 标定，填入 `cpp_runtime.launch.xml` 中后置节点的 `fisheye_k/fisheye_d` 参数。
+- 完成 OpenCV fisheye 标定，填入 `config/ev_ads_runtime.launch.xml` 中后置节点的 `fisheye_k/fisheye_d` 参数。
 - 验证左/中/右三区距离和靠近速度。
 - 开启去畸变后重新标定 `distance_focal_px`。
 - ONNX 稳定后转换 RKNN。
@@ -39,7 +39,7 @@
 DMS：
 
 - 已补入 `models/onnx/driver_face_yunet.onnx` 和 `models/onnx/driver_dms_yolo.onnx`。
-- 当前类别 ID 已按 SafeDrive 写入 `cpp_runtime.launch.xml`：睁眼 `[0]`、半闭眼 `[1]`、闭眼 `[2]`、张嘴 `[3]`、手机 `[5]`、吸烟/分心 `[6]`。
+- 当前类别 ID 已按 SafeDrive 写入 `config/ev_ads_runtime.launch.xml`：睁眼 `[0]`、半闭眼 `[1]`、闭眼 `[2]`、张嘴 `[3]`、手机 `[5]`、吸烟/分心 `[6]`。
 - 用真实驾驶员摄像头核对人脸、闭眼、半闭眼、打哈欠、手机和夜间补光场景。
 - 增加 30-60 秒 PERCLOS 滑动窗口。
 - 夜间、头盔、口罩、补光场景必须单独测试。
@@ -52,7 +52,7 @@ DMS：
 
 ## 4. P2：工程化
 
-- 已新增 Mac CMake 测试目录 `test/`，覆盖 `common.hpp`、`FusionCore` 和 `EventStore`；后续再接入 gtest 与 `yolo_onnx` 输出解析用例。
+- 已新增 Mac CMake 测试目录 `test/`，覆盖 `risk_math.hpp`、`FusionCore` 和 `EventStore`；后续再接入 gtest 与 `onnx_yolo_detector` 输出解析用例。
 - 增加 diagnostics topic，报告延迟、频率、health。
 - 增加模型版本记录：文件 hash、输入尺寸、类别表、阈值、测试集结果、许可证。
 - 高频事件默认写 SQLite/WAL 并批量提交；JSONL 仅用于兼容、调试和小流量回放。

@@ -50,7 +50,7 @@
 | UART_TX| RX  |
 | UART_RX| TX  |
 
-确认串口：`ls /dev/serial/by-id`。在 `cpp_runtime.launch.xml` 的 `imu_node` 中：
+确认串口：`ls /dev/serial/by-id`。在 `config/ev_ads_runtime.launch.xml` 的 `imu_motion` 节点中：
 
 ```xml
 <param name="driver" value="uart"/>
@@ -66,7 +66,7 @@
 <param name="mount_rpy_deg" value="[180.0, 0.0, 90.0]"/>
 ```
 
-C++ runtime 中 mounting transform 已集成在 `imu_node_cpp`。后续应补 gtest 覆盖 identity / yaw 90 / roll 180 / pair 一致性。
+C++ runtime 中 mounting transform 已集成在 `imu_motion_node`。后续应补 gtest 覆盖 identity / yaw 90 / roll 180 / pair 一致性。
 
 ## 7. 校准
 

@@ -180,11 +180,11 @@ source "$ROS_SETUP"
 source "$EV_ADS_DIR/ros2_ws/install/setup.bash"
 
 # C++ runtime：RK3588 上优先使用 C++ 摄像头/IMU/感知/融合节点。
-LAUNCH_CMD=(ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml use_fakes:=false)
+LAUNCH_CMD=(ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml use_fakes:=false)
 # 例：纯演示
-# LAUNCH_CMD=(ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml use_fakes:=true perception_mode:=scripted)
+# LAUNCH_CMD=(ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml use_fakes:=true perception_mode:=scripted)
 # 例：开启真实制动（仅低速台架）
-# LAUNCH_CMD=(ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml use_fakes:=false enable_real_brake:=true)
+# LAUNCH_CMD=(ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml use_fakes:=false enable_real_brake:=true)
 
 log "exec: ${LAUNCH_CMD[*]}"
 exec "${LAUNCH_CMD[@]}"

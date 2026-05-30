@@ -1,11 +1,12 @@
+// 前向风险节点：输出前车、行人、障碍物、坑洼等前向风险统一接口。
 #include <chrono>
 #include <cmath>
 #include <functional>
 #include <memory>
 #include <string>
 
-#include "ev_ads_interfaces/msg/front_risk.hpp"
-#include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/msg/front_risk.hpp"
+#include "ev_ads_runtime_cpp/risk_math.hpp"
 #include "ev_ads_runtime_cpp/topics.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/float32_multi_array.hpp"
@@ -22,15 +23,15 @@ struct FrontObservation {
   double lateral_offset_m = 0.0;
 };
 
-class FrontNodeCpp final : public rclcpp::Node {
+class FrontRiskNode final : public rclcpp::Node {
  public:
-  FrontNodeCpp() : Node("front_perception_node_cpp") {
+  FrontRiskNode() : Node("front_risk_node") {
     publish_rate_hz_ = declare_parameter<double>("publish_rate_hz", 10.0);
     fake_mode_ = declare_parameter<std::string>("fake_mode", "scripted");
     require_camera_health_ = declare_parameter<bool>("require_camera_health", false);
     camera_timeout_ms_ = declare_parameter<int>("camera_timeout_ms", 1000);
 
-    pub_ = create_publisher<ev_ads_interfaces::msg::FrontRisk>(
+    pub_ = create_publisher<ev_ads_runtime_cpp::msg::FrontRisk>(
         topics_.front_risk, rclcpp::QoS(10));
     sim_sub_ = create_subscription<std_msgs::msg::Float32MultiArray>(
         topics_.sim_front_observation,
@@ -58,7 +59,7 @@ class FrontNodeCpp final : public rclcpp::Node {
     t0_ = now();
     timer_ = create_wall_timer(
         std::chrono::duration<double>(1.0 / std::max(1.0, publish_rate_hz_)),
-        std::bind(&FrontNodeCpp::tick, this));
+        std::bind(&FrontRiskNode::tick, this));
     RCLCPP_INFO(
         get_logger(),
         "前向感知节点启动，模式=%s 需要摄像头健康=%s",
@@ -111,7 +112,7 @@ class FrontNodeCpp final : public rclcpp::Node {
       score = 0.0;
     }
 
-    ev_ads_interfaces::msg::FrontRisk msg;
+    ev_ads_runtime_cpp::msg::FrontRisk msg;
     msg.header.stamp = now();
     msg.header.frame_id = "camera_front";
     msg.primary_class = obs.cls;
@@ -137,7 +138,7 @@ class FrontNodeCpp final : public rclcpp::Node {
   rclcpp::Time injected_stamp_{0, 0, RCL_ROS_TIME};
   rclcpp::Time camera_health_stamp_{0, 0, RCL_ROS_TIME};
   rclcpp::Time t0_{0, 0, RCL_ROS_TIME};
-  rclcpp::Publisher<ev_ads_interfaces::msg::FrontRisk>::SharedPtr pub_;
+  rclcpp::Publisher<ev_ads_runtime_cpp::msg::FrontRisk>::SharedPtr pub_;
   rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr sim_sub_;
   rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr camera_health_sub_;
   rclcpp::TimerBase::SharedPtr timer_;
@@ -147,7 +148,7 @@ class FrontNodeCpp final : public rclcpp::Node {
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::FrontNodeCpp>());
+  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::FrontRiskNode>());
   rclcpp::shutdown();
   return 0;
 }

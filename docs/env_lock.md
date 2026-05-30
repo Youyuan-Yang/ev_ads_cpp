@@ -46,12 +46,12 @@
 
 | 话题 | 类型 | 频率 |
 |---|---|---|
-| `/sensor/mmwave/vital` | `ev_ads_interfaces/msg/MmWaveVital` | 5-10 Hz |
+| `/sensor/mmwave/vital` | `ev_ads_runtime_cpp/msg/MmWaveVital` | 5-10 Hz |
 | `/camera/{front,rear,driver}/image_raw/compressed` | `sensor_msgs/CompressedImage` | 25-30 Hz |
-| `/vehicle/motion` | `ev_ads_interfaces/msg/VehicleMotion` | 100 Hz |
-| `/perception/front_risk` | `ev_ads_interfaces/msg/FrontRisk` | 10 Hz |
-| `/perception/blind_spot` | `ev_ads_interfaces/msg/BlindSpotState` | 10 Hz |
-| `/perception/driver_state` | `ev_ads_interfaces/msg/DriverState` | 10 Hz |
-| `/decision/risk_state` | `ev_ads_interfaces/msg/RiskState` | 20 Hz |
-| `/decision/warning_cmd` | `ev_ads_interfaces/msg/WarningCommand` | 事件触发 |
-| `/decision/brake_cmd` | `ev_ads_interfaces/msg/BrakeCommand` | 默认禁用 |
+| `/vehicle/motion` | `ev_ads_runtime_cpp/msg/VehicleMotion` | 100 Hz |
+| `/perception/front_risk` | `ev_ads_runtime_cpp/msg/FrontRisk` | 10 Hz |
+| `/perception/blind_spot` | `ev_ads_runtime_cpp/msg/BlindSpotState` | 10 Hz |
+| `/perception/driver_state` | `ev_ads_runtime_cpp/msg/DriverState` | 10 Hz |
+| `/decision/risk_state` | `ev_ads_runtime_cpp/msg/RiskState` | 20 Hz |
+| `/decision/warning_cmd` | `ev_ads_runtime_cpp/msg/WarningCommand` | 事件触发 |
+| `/decision/brake_cmd` | `ev_ads_runtime_cpp/msg/BrakeCommand` | 默认禁用 |

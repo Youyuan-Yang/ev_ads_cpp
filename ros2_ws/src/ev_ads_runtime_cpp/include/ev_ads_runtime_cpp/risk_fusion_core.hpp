@@ -1,5 +1,7 @@
 #pragma once
 
+// 不依赖 ROS 的融合核心：便于在 Mac 上单测，也便于后续移植到 RKNN/NPU 链路外。
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -7,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/risk_math.hpp"
 #include "ev_ads_runtime_cpp/runtime_config.hpp"
 
 namespace ev_ads_runtime_cpp {

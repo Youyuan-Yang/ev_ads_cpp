@@ -21,8 +21,6 @@ find ros2_ws/src -maxdepth 2 -name package.xml -print
 期望只看到：
 
 ```text
-ev_ads_bringup
-ev_ads_interfaces
 ev_ads_runtime_cpp
 ```
 
@@ -50,7 +48,7 @@ ctest --test-dir build/mac --output-on-failure
 
 | 测试 | 覆盖内容 |
 |---|---|
-| `common_and_fusion` | enum 转换、TTC、后向风险、疲劳分、融合 L3 门控 |
+| `risk_math_and_fusion` | enum 转换、TTC、后向风险、疲劳分、融合 L3 门控 |
 | `event_store` | SQLite/WAL 批量写入、事件表、JSON 工具 |
 | `model_loading` | `driver_face_yunet.onnx`、`driver_dms_yolo.onnx`、`rear_yolo.onnx` 的 OpenCV 加载和空白图推理 |
 | `project_checks` | XML-only 配置、模型 hash、launch 参数、SQLite 默认配置、非测试 Python 清理、文档口径 |
@@ -59,7 +57,7 @@ ctest --test-dir build/mac --output-on-failure
 
 ```bash
 source install/setup.bash
-ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml use_fakes:=true
+ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml use_fakes:=true
 ```
 
 检查：
@@ -76,7 +74,7 @@ ros2 topic echo /decision/risk_state
 ## 4. 真实硬件测试
 
 ```bash
-ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
+ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
   perception_mode:=scripted \
   imu_driver:=i2c \
@@ -94,7 +92,7 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 ## 5. 模型测试
 
 ```bash
-ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
+ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
   perception_mode:=model \
   rear_model_path:=/opt/ev_ads/models/onnx/rear_yolo.onnx \
@@ -107,7 +105,7 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 - 模型路径为空或错误时 health 为 ERROR，不继续输出旧风险。
 - 后置目标接近时 `zone_*` 从 `present` 变为 `approaching`。
 - DMS 类别 ID 正确后，闭眼、半闭眼、打哈欠、手机应反映到 `DriverState`；人脸连续消失应在缓冲时间后反映为驾驶员风险。
-- 前置模型上线前，`front_node_cpp` 不应把通用模型误当成坑洼/鬼探头模型。
+- 前置模型上线前，`front_risk_node` 不应把通用模型误当成坑洼/鬼探头模型。
 
 ## 6. 日志检查
 
@@ -126,7 +124,7 @@ sqlite3 /tmp/ev_ads/events.sqlite "select t,type,payload from events order by id
 兼容 JSONL：
 
 ```bash
-ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
+ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   event_storage_backend:=jsonl \
   event_log_path:=/tmp/ev_ads/events.jsonl
 ```

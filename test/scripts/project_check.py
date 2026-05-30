@@ -17,17 +17,14 @@ EXPECTED_HASHES = {
 
 
 XML_FILES = [
-    "ros2_ws/src/ev_ads_runtime_cpp/launch/cpp_runtime.launch.xml",
-    "ros2_ws/src/ev_ads_bringup/launch/ev_ads_cpp_runtime.launch.xml",
-    "ros2_ws/src/ev_ads_bringup/launch/ev_ads_demo.launch.xml",
-    "ros2_ws/src/ev_ads_runtime_cpp/scenarios/driver_drowsy.xml",
-    "ros2_ws/src/ev_ads_runtime_cpp/scenarios/front_pedestrian_emergency.xml",
-    "ros2_ws/src/ev_ads_runtime_cpp/scenarios/front_sensor_lost.xml",
-    "ros2_ws/src/ev_ads_runtime_cpp/scenarios/imu_lean_in_curve.xml",
-    "ros2_ws/src/ev_ads_runtime_cpp/scenarios/mmwave_abnormal_low_confidence.xml",
-    "ros2_ws/src/ev_ads_runtime_cpp/scenarios/rear_right_blindspot_turn.xml",
+    "config/ev_ads_runtime.launch.xml",
+    "config/scenarios/driver_drowsy.xml",
+    "config/scenarios/front_pedestrian_emergency.xml",
+    "config/scenarios/front_sensor_lost.xml",
+    "config/scenarios/imu_lean_in_curve.xml",
+    "config/scenarios/mmwave_abnormal_low_confidence.xml",
+    "config/scenarios/rear_right_blindspot_turn.xml",
     "ros2_ws/src/ev_ads_runtime_cpp/package.xml",
-    "ros2_ws/src/ev_ads_bringup/package.xml",
 ]
 
 
@@ -81,6 +78,14 @@ def check_no_mixed_project_config() -> None:
     if mixed:
         fail("项目自有配置必须统一为 XML，发现混用文件: " + ", ".join(sorted(mixed)))
 
+    misplaced_xml = []
+    for path in (ROOT / "ros2_ws/src").rglob("*.xml"):
+        rel = path.relative_to(ROOT).as_posix()
+        if not rel.endswith("package.xml"):
+            misplaced_xml.append(rel)
+    if misplaced_xml:
+        fail("运行/场景 XML 必须放在根目录 config/: " + ", ".join(sorted(misplaced_xml)))
+
 
 def check_model_files() -> None:
     for rel, expected in EXPECTED_HASHES.items():
@@ -95,8 +100,11 @@ def check_model_files() -> None:
 
 
 def check_launch_configuration() -> None:
-    runtime_launch = read_text("ros2_ws/src/ev_ads_runtime_cpp/launch/cpp_runtime.launch.xml")
+    runtime_launch = read_text("config/ev_ads_runtime.launch.xml")
     for required in [
+        'name="rear_model_path" default="$(find-pkg-share ev_ads_runtime_cpp)/models/onnx/rear_yolo.onnx"',
+        'name="driver_model_path" default="$(find-pkg-share ev_ads_runtime_cpp)/models/onnx/driver_dms_yolo.onnx"',
+        'name="driver_face_model_path" default="$(find-pkg-share ev_ads_runtime_cpp)/models/onnx/driver_face_yunet.onnx"',
         'name="driver_face_model_path"',
         'name="event_storage_backend" default="sqlite"',
         'name="event_log_path" default="/tmp/ev_ads/events.sqlite"',
@@ -111,30 +119,26 @@ def check_launch_configuration() -> None:
     if "<param from=" in runtime_launch or "fusion_config" in runtime_launch:
         fail("runtime launch 仍依赖外部配置文件")
 
-    for rel in [
-        "ros2_ws/src/ev_ads_bringup/launch/ev_ads_cpp_runtime.launch.xml",
-        "ros2_ws/src/ev_ads_bringup/launch/ev_ads_demo.launch.xml",
-    ]:
-        text = read_text(rel)
-        for required in ["driver_face_model_path", "event_storage_backend", "events.sqlite", "fusion_profile"]:
-            if required not in text:
-                fail(f"{rel} 未转发配置: {required}")
-        if "fusion_config" in text:
-            fail(f"{rel} 仍保留 fusion_config 外部配置入口")
+    if 'default=""' in runtime_launch:
+        fail("根配置仍有空默认路径")
 
 
 def check_runtime_sources() -> None:
     required_files = [
         "CMakeLists.txt",
         "test/CMakeLists.txt",
-        "test/test_common_and_fusion.cpp",
+        "test/test_risk_math_and_fusion.cpp",
         "test/test_event_store.cpp",
         "test/test_model_loading.cpp",
-        "ros2_ws/src/ev_ads_runtime_cpp/include/ev_ads_runtime_cpp/types.hpp",
+        "config/ev_ads_runtime.launch.xml",
+        "config/scenarios/front_pedestrian_emergency.xml",
+        "ros2_ws/src/ev_ads_runtime_cpp/include/ev_ads_runtime_cpp/domain_types.hpp",
         "ros2_ws/src/ev_ads_runtime_cpp/include/ev_ads_runtime_cpp/topics.hpp",
         "ros2_ws/src/ev_ads_runtime_cpp/include/ev_ads_runtime_cpp/runtime_config.hpp",
-        "ros2_ws/src/ev_ads_runtime_cpp/include/ev_ads_runtime_cpp/fusion_core.hpp",
+        "ros2_ws/src/ev_ads_runtime_cpp/include/ev_ads_runtime_cpp/risk_fusion_core.hpp",
         "ros2_ws/src/ev_ads_runtime_cpp/include/ev_ads_runtime_cpp/event_store.hpp",
+        "ros2_ws/src/ev_ads_runtime_cpp/msg/FrontRisk.msg",
+        "ros2_ws/src/ev_ads_runtime_cpp/msg/RiskState.msg",
         "ros2_ws/src/ev_ads_runtime_cpp/src/event_store.cpp",
     ]
     for rel in required_files:
@@ -142,27 +146,60 @@ def check_runtime_sources() -> None:
             fail(f"缺少项目级测试/核心文件: {rel}")
 
     cmake = read_text("ros2_ws/src/ev_ads_runtime_cpp/CMakeLists.txt")
-    for needle in ["find_package(SQLite3 REQUIRED)", "add_library(event_store", "target_link_libraries(event_logger_node_cpp"]:
+    for needle in [
+        "find_package(SQLite3 REQUIRED)",
+        "rosidl_generate_interfaces",
+        "add_library(event_store",
+        "target_link_libraries(event_recorder_node",
+        "../../../config/ev_ads_runtime.launch.xml",
+        "DESTINATION share/${PROJECT_NAME}/launch",
+        "../../../models/onnx/rear_yolo.onnx",
+        "../../../models/onnx/driver_face_yunet.onnx",
+        "../../../models/onnx/driver_dms_yolo.onnx",
+        "DESTINATION share/${PROJECT_NAME}/models/onnx",
+    ]:
         if needle not in cmake:
             fail(f"runtime CMake 未配置: {needle}")
     if "install(DIRECTORY config" in cmake:
         fail("runtime CMake 仍安装 YAML config 目录")
+    if "find_package(ev_ads_interfaces" in cmake:
+        fail("runtime CMake 仍依赖独立 interfaces 包")
+
+    for exe in [
+        "front_risk_node",
+        "rear_blind_spot_node",
+        "driver_attention_node",
+        "risk_fusion_node",
+        "imu_motion_node",
+        "camera_capture_node",
+        "mmwave_vital_node",
+        "terminal_hmi_node",
+        "event_recorder_node",
+    ]:
+        if f"add_executable({exe}" not in cmake or exe not in cmake.split("install(TARGETS", 1)[-1]:
+            fail(f"runtime CMake 未完整编译/安装节点: {exe}")
+
+    packages = sorted(path.relative_to(ROOT).as_posix() for path in (ROOT / "ros2_ws/src").glob("*/package.xml"))
+    if packages != ["ros2_ws/src/ev_ads_runtime_cpp/package.xml"]:
+        fail("ros2_ws/src 必须只保留一个 ROS2 包: " + ", ".join(packages))
 
     package_xml = read_text("ros2_ws/src/ev_ads_runtime_cpp/package.xml")
     if "<depend>sqlite3</depend>" not in package_xml:
         fail("package.xml 缺少 sqlite3 依赖")
+    if "ev_ads_interfaces" in package_xml:
+        fail("package.xml 仍依赖独立 interfaces 包")
 
-    fusion_node = read_text("ros2_ws/src/ev_ads_runtime_cpp/src/fusion_node_cpp.cpp")
+    fusion_node = read_text("ros2_ws/src/ev_ads_runtime_cpp/src/risk_fusion_node.cpp")
     if "FusionCore core_" not in fusion_node:
-        fail("fusion_node_cpp 未使用 FusionCore")
+        fail("risk_fusion_node 未使用 FusionCore")
 
-    driver_node = read_text("ros2_ws/src/ev_ads_runtime_cpp/src/driver_monitor_node_cpp.cpp")
+    driver_node = read_text("ros2_ws/src/ev_ads_runtime_cpp/src/driver_attention_node.cpp")
     if "DriverMonitorConfig config_" not in driver_node or "RuntimeTopics topics_" not in driver_node:
-        fail("driver_monitor_node_cpp 未收敛到配置对象/统一话题")
+        fail("driver_attention_node 未收敛到配置对象/统一话题")
 
-    event_node = read_text("ros2_ws/src/ev_ads_runtime_cpp/src/event_logger_node_cpp.cpp")
+    event_node = read_text("ros2_ws/src/ev_ads_runtime_cpp/src/event_recorder_node.cpp")
     if "EventStore store_" not in event_node or "storage_backend" not in event_node:
-        fail("event_logger_node_cpp 未使用 EventStore 或存储后端参数")
+        fail("event_recorder_node 未使用 EventStore 或存储后端参数")
 
 
 def check_docs() -> None:

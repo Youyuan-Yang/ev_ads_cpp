@@ -1,5 +1,7 @@
 #pragma once
 
+// 风险评分基础数学：TTC、后向三区、疲劳分、IMU/毫米波风险映射。
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -7,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "ev_ads_runtime_cpp/types.hpp"
+#include "ev_ads_runtime_cpp/domain_types.hpp"
 
 namespace ev_ads_runtime_cpp {
 

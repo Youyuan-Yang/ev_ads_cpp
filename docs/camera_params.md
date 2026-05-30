@@ -1,6 +1,6 @@
 # C++ Runtime 摄像头参数
 
-运行配置入口：`ros2_ws/src/ev_ads_runtime_cpp/launch/cpp_runtime.launch.xml`
+运行配置入口：`config/ev_ads_runtime.launch.xml`
 
 ## 1. by-id 路径
 
@@ -13,7 +13,7 @@ ls -l /dev/v4l/by-id/
 把实际路径写到 launch 参数，或启动时覆盖：
 
 ```bash
-ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
+ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
   front_camera_device:=/dev/v4l/by-id/... \
   rear_camera_device:=/dev/v4l/by-id/... \
@@ -28,12 +28,12 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 | rear | 1280x720 或 1920x1080 | 25-30 | MJPG | 后向鱼眼靠近预警 |
 | driver | 1280x720 | 25 | MJPG | 疲劳/分心监测 |
 
-C++ `camera_node_cpp` 默认发布 `/camera/<name>/image_raw/compressed` 和 `/camera/<name>/health`。
+C++ `camera_capture_node` 默认发布 `/camera/<name>/image_raw/compressed` 和 `/camera/<name>/health`。
 
 ## 3. 验证
 
 ```bash
-ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml use_fakes:=false perception_mode:=idle
+ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml use_fakes:=false perception_mode:=idle
 ros2 topic hz /camera/front/image_raw/compressed
 ros2 topic echo /camera/front/health
 ```
@@ -44,7 +44,7 @@ ros2 topic echo /camera/front/health
 
 鱼眼去畸变：
 
-- 配置入口：`ros2_ws/src/ev_ads_runtime_cpp/launch/cpp_runtime.launch.xml`
+- 配置入口：`config/ev_ads_runtime.launch.xml`
 - `fisheye_undistort: true` 开启校正。
 - `fisheye_k: [fx, fy, cx, cy]` 填入相机内参。
 - `fisheye_d: [k1, k2, k3, k4]` 填入 OpenCV fisheye 畸变参数。
@@ -56,13 +56,13 @@ OpenCV 标定建议：
 ```text
 采集 20-40 张不同角度棋盘格图像
 使用 cv::fisheye::calibrate 求 K/D
-把 K/D 写入 cpp_runtime.launch.xml 中 rear_perception_node 的 fisheye_k/fisheye_d
+把 K/D 写入 `config/ev_ads_runtime.launch.xml` 中 `rear_blind_spot` 的 `fisheye_k/fisheye_d`
 打开 fisheye_undistort 后检查画面边缘直线是否明显改善
 ```
 
 检测框估距：
 
-- 调整 `rear_node_cpp` 参数 `distance_focal_px`。
+- 调整 `rear_blind_spot_node` 参数 `distance_focal_px`。
 - 记录 1m、2m、3m、5m、8m 目标框高度。
 - 验证 `/perception/blind_spot` 中 `*_distance` 和 `*_closing`。
 

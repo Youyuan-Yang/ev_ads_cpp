@@ -1,3 +1,4 @@
+// 驾驶员注意力节点：YuNet 人脸检测 + DMS YOLO，输出疲劳与分心状态。
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -10,10 +11,10 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/objdetect.hpp>
 
-#include "ev_ads_interfaces/msg/driver_state.hpp"
-#include "ev_ads_runtime_cpp/common.hpp"
+#include "ev_ads_runtime_cpp/msg/driver_state.hpp"
+#include "ev_ads_runtime_cpp/risk_math.hpp"
 #include "ev_ads_runtime_cpp/runtime_config.hpp"
-#include "ev_ads_runtime_cpp/yolo_onnx.hpp"
+#include "ev_ads_runtime_cpp/onnx_yolo_detector.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/compressed_image.hpp"
 #include "std_msgs/msg/float32_multi_array.hpp"
@@ -143,12 +144,12 @@ struct DriverObservation {
   double confidence = 0.0;
 };
 
-class DriverMonitorNodeCpp final : public rclcpp::Node {
+class DriverAttentionNode final : public rclcpp::Node {
  public:
-  DriverMonitorNodeCpp() : Node("driver_monitor_node_cpp") {
+  DriverAttentionNode() : Node("driver_attention_node") {
     config_ = read_driver_config(this);
 
-    pub_ = create_publisher<ev_ads_interfaces::msg::DriverState>(
+    pub_ = create_publisher<ev_ads_runtime_cpp::msg::DriverState>(
         topics_.driver_state, rclcpp::QoS(10));
     sim_sub_ = create_subscription<std_msgs::msg::Float32MultiArray>(
         topics_.sim_driver_observation,
@@ -180,13 +181,13 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
       image_sub_ = create_subscription<sensor_msgs::msg::CompressedImage>(
           RuntimeTopics::image_topic(topics_.camera_driver_ns),
           rclcpp::QoS(rclcpp::KeepLast(1)).best_effort(),
-          std::bind(&DriverMonitorNodeCpp::image_callback, this, std::placeholders::_1));
+          std::bind(&DriverAttentionNode::image_callback, this, std::placeholders::_1));
     }
 
     t0_ = now();
     timer_ = create_wall_timer(
         std::chrono::duration<double>(1.0 / std::max(1.0, config_.publish_rate_hz)),
-        std::bind(&DriverMonitorNodeCpp::tick, this));
+        std::bind(&DriverAttentionNode::tick, this));
     RCLCPP_INFO(
         get_logger(),
         "驾驶员监测节点启动，模式=%s DMS模型=%s 人脸模型=%s",
@@ -494,7 +495,7 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
       }
     }
 
-    ev_ads_interfaces::msg::DriverState msg;
+    ev_ads_runtime_cpp::msg::DriverState msg;
     msg.header.stamp = now();
     msg.header.frame_id = "camera_driver";
     msg.face_visible = bad_health(health) ? FACE_UNKNOWN : obs.face_visible;
@@ -526,7 +527,7 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
   rclcpp::Time t0_{0, 0, RCL_ROS_TIME};
   cv::Ptr<cv::FaceDetectorYN> face_detector_;
   YoloOnnxDetector dms_detector_;
-  rclcpp::Publisher<ev_ads_interfaces::msg::DriverState>::SharedPtr pub_;
+  rclcpp::Publisher<ev_ads_runtime_cpp::msg::DriverState>::SharedPtr pub_;
   rclcpp::Subscription<std_msgs::msg::Float32MultiArray>::SharedPtr sim_sub_;
   rclcpp::Subscription<std_msgs::msg::UInt8>::SharedPtr camera_health_sub_;
   rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr image_sub_;
@@ -537,7 +538,7 @@ class DriverMonitorNodeCpp final : public rclcpp::Node {
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::DriverMonitorNodeCpp>());
+  rclcpp::spin(std::make_shared<ev_ads_runtime_cpp::DriverAttentionNode>());
   rclcpp::shutdown();
   return 0;
 }

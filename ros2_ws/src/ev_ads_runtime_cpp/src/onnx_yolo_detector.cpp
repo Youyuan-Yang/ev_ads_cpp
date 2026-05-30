@@ -1,4 +1,5 @@
-#include "ev_ads_runtime_cpp/yolo_onnx.hpp"
+// OpenCV DNN YOLO 封装：统一解析标准 YOLO 输出和端到端 ONNX 输出。
+#include "ev_ads_runtime_cpp/onnx_yolo_detector.hpp"
 
 #include <algorithm>
 #include <cmath>

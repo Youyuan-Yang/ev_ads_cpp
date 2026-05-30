@@ -2,8 +2,8 @@
 #include <cmath>
 #include <iostream>
 
-#include "ev_ads_runtime_cpp/common.hpp"
-#include "ev_ads_runtime_cpp/fusion_core.hpp"
+#include "ev_ads_runtime_cpp/risk_math.hpp"
+#include "ev_ads_runtime_cpp/risk_fusion_core.hpp"
 
 using namespace ev_ads_runtime_cpp;
 
@@ -18,7 +18,7 @@ void test_enum_boundaries() {
   assert(zone_from_ros(ZONE_APPROACHING) == ZoneState::kApproaching);
 }
 
-void test_common_math() {
+void test_risk_math() {
   assert(std::isinf(estimate_ttc(10.0, 0.0)));
   assert(std::abs(estimate_ttc(10.0, 5.0) - 2.0) < 1e-9);
   assert(front_risk_score(ObjectClass::kPedestrian, 2.0, 2.0, 0.0) > 0.7);
@@ -67,9 +67,9 @@ void test_fusion_demotes_without_front_primary() {
 
 int main() {
   test_enum_boundaries();
-  test_common_math();
+  test_risk_math();
   test_fusion_front_l3();
   test_fusion_demotes_without_front_primary();
-  std::cout << "test_common_and_fusion ok\n";
+  std::cout << "test_risk_math_and_fusion ok\n";
   return 0;
 }
