@@ -37,6 +37,18 @@ sudo apt install -y \
 
 ## 3. 构建
 
+推荐从项目根目录走统一 CMake target；它会调用 `ros2_ws` 下的 colcon 构建真实 runtime，测试默认可关闭：
+
+```bash
+cd /opt/ev_ads
+source /opt/ros/humble/setup.bash
+cmake -S . -B build/rk3588 -DEV_ADS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
+cmake --build build/rk3588 --target ros2_workspace_build
+source ros2_ws/install/setup.bash
+```
+
+也可以直接使用 ROS2 工作区命令：
+
 ```bash
 cd /opt/ev_ads/ros2_ws
 source /opt/ros/humble/setup.bash

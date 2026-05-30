@@ -164,7 +164,8 @@ ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
 - 新增 `topics.hpp` 与 `runtime_config.hpp`：集中话题名和节点配置，减少节点内硬编码。
 - 新增 `risk_fusion_core.hpp`：将融合算法从 ROS 节点抽离为可单测核心类，`risk_fusion_node` 只负责 ROS 消息桥接。
 - 新增 `event_store.hpp/cpp`：封装 SQLite/JSONL 事件存储，默认 WAL + 批量提交，降低 JSONL 高频 flush 性能风险。
-- 新增根目录级 `CMakeLists.txt` 与 `test/`：根 CMake 通过 `FetchContent` 自动下载 GoogleTest，Mac 上从项目根目录统一编译测试 `domain_types/risk_math`、`FusionCore`、`EventStore`、ONNX 模型加载和项目配置。
+- 重构根目录级 `CMakeLists.txt`：现在根 CMake 是 EV-ADS runtime 总入口，优先接入真实 `ev_ads_runtime_cpp` ROS2 包，并提供 `ros2_workspace_build`、`run_ev_ads_fake`、`run_ev_ads_hardware` target；GoogleTest 仅作为 `EV_ADS_BUILD_TESTS` 可选测试链路。
+- 新增 `test/`：根 CMake 在启用测试时通过 `FetchContent` 自动下载 GoogleTest，Mac 上从项目根目录统一编译测试 `domain_types/risk_math`、`FusionCore`、`EventStore`、ONNX 模型加载和项目配置。
 - 将旧 Python launch 改为 XML launch。
 - 将运行参数统一收敛到根目录 `config/ev_ads_runtime.launch.xml`，删除项目自有 YAML/TOML 配置，场景文件统一放入 `config/scenarios/`。
 - 删除非测试 Python 运行包、`apps/`、`tools/`。
@@ -201,7 +202,7 @@ ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
 统一命令：
 
 ```bash
-cmake -S . -B build/mac
+cmake -S . -B build/mac -DEV_ADS_BUILD_ROS2_NATIVE=OFF -DEV_ADS_BUILD_TESTS=ON
 cmake --build build/mac
 ctest --test-dir build/mac --output-on-failure
 ```

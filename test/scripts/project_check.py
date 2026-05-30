@@ -147,6 +147,13 @@ def check_runtime_sources() -> None:
 
     root_cmake = read_text("CMakeLists.txt")
     for needle in [
+        "project(ev_ads_runtime",
+        "EV_ADS_BUILD_ROS2_NATIVE",
+        "EV_ADS_RUNTIME_PACKAGE_DIR",
+        "add_subdirectory(\"${EV_ADS_RUNTIME_PACKAGE_DIR}\"",
+        "ros2_workspace_build",
+        "run_ev_ads_fake",
+        "run_ev_ads_hardware",
         "include(FetchContent)",
         "FetchContent_Declare(",
         "googletest",
@@ -155,7 +162,9 @@ def check_runtime_sources() -> None:
         "add_subdirectory(test)",
     ]:
         if needle not in root_cmake:
-            fail(f"根 CMake 未自动下载/配置 GoogleTest: {needle}")
+            fail(f"根 CMake 未配置真实项目入口或 GoogleTest: {needle}")
+    if "ev_ads_project_tests" in root_cmake:
+        fail("根 CMake 仍是测试工程命名，必须是 EV-ADS runtime 总入口")
 
     test_cmake = read_text("test/CMakeLists.txt")
     for needle in [
@@ -242,13 +251,16 @@ def check_docs() -> None:
         fail("README 未写根目录统一测试命令")
     if "GoogleTest" not in readme or "FetchContent" not in readme:
         fail("README 未说明根 CMake 自动下载 GoogleTest")
+    for needle in ["EV_ADS_BUILD_ROS2_NATIVE", "EV_ADS_BUILD_TESTS", "ros2_workspace_build", "run_ev_ads_hardware"]:
+        if needle not in readme:
+            fail(f"README 未说明根 CMake 真实项目入口: {needle}")
     if "SQLite/WAL" not in readme:
         fail("README 未说明 SQLite/WAL 事件记录")
     if "XML/YAML" in readme or ".yaml" in readme or ".toml" in readme:
         fail("README 仍描述多配置格式")
 
     test_plan = read_text("docs/test_plan.md")
-    for needle in ["cmake -S . -B build/mac", "events.sqlite", "GoogleTest", "ModelLoading", "XML-only"]:
+    for needle in ["cmake -S . -B build/mac", "ros2_workspace_build", "events.sqlite", "GoogleTest", "ModelLoading", "XML-only"]:
         if needle not in test_plan:
             fail(f"测试计划未覆盖: {needle}")
 

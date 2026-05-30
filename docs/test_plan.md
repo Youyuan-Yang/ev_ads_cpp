@@ -26,6 +26,18 @@ ev_ads_runtime_cpp
 
 ## 2. RK3588 构建测试
 
+根目录 CMake 已经作为项目总入口，生产构建时关闭测试，只构建/启动真实 ROS2 runtime：
+
+```bash
+cd /opt/ev_ads
+source /opt/ros/humble/setup.bash
+cmake -S . -B build/rk3588 -DEV_ADS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
+cmake --build build/rk3588 --target ros2_workspace_build
+cmake --build build/rk3588 --target run_ev_ads_fake
+```
+
+也可以继续使用 ROS2 标准工作区命令：
+
 ```bash
 cd /opt/ev_ads/ros2_ws
 source /opt/ros/humble/setup.bash
@@ -39,7 +51,7 @@ colcon test --event-handlers console_direct+
 该测试入口不依赖 ROS，可在 Mac 上统一验证核心算法、事件存储、ONNX 模型加载和项目配置：
 
 ```bash
-cmake -S . -B build/mac
+cmake -S . -B build/mac -DEV_ADS_BUILD_ROS2_NATIVE=OFF -DEV_ADS_BUILD_TESTS=ON
 cmake --build build/mac
 ctest --test-dir build/mac --output-on-failure
 ```
