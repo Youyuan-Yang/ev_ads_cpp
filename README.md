@@ -84,10 +84,17 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 
 ## 6. Mac 本机测试
 
-核心算法与事件存储可在 Mac 上不依赖 ROS 直接测试：
+核心算法、事件存储、模型加载和项目配置可在 Mac 上不依赖 ROS 直接测试。统一从项目根目录执行：
 
 ```bash
-cmake -S test -B test/build
-cmake --build test/build
-ctest --test-dir test/build --output-on-failure
+cmake -S . -B build/mac
+cmake --build build/mac
+ctest --test-dir build/mac --output-on-failure
 ```
+
+当前根级测试包含：
+
+- `common_and_fusion`：枚举边界、风险数学、融合 L3 门控。
+- `event_store`：SQLite/WAL 批量写入和 JSON 工具。
+- `model_loading`：YuNet、DMS YOLO、后置 YOLO 的 OpenCV 加载与空白图推理。
+- `project_checks`：XML/YAML、模型 hash、launch 参数、SQLite 配置、非测试 Python 清理和文档口径。

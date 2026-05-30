@@ -163,7 +163,7 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 - 新增 `topics.hpp` 与 `runtime_config.hpp`：集中话题名和节点配置，减少节点内硬编码。
 - 新增 `fusion_core.hpp`：将融合算法从 ROS 节点抽离为可单测核心类，`fusion_node_cpp` 只负责 ROS 消息桥接。
 - 新增 `event_store.hpp/cpp`：封装 SQLite/JSONL 事件存储，默认 WAL + 批量提交，降低 JSONL 高频 flush 性能风险。
-- 新增根目录 `test/`：Mac 上可直接编译测试 `common`、`FusionCore` 和 `EventStore`。
+- 新增根目录级 `CMakeLists.txt` 与 `test/`：Mac 上从项目根目录统一编译测试 `common`、`FusionCore`、`EventStore`、ONNX 模型加载和项目配置。
 - 将旧 Python launch 改为 XML launch。
 - 删除非测试 Python 运行包、`apps/`、`tools/`。
 - 下载官方 Ultralytics `yolo11n.pt`，在 `/private/tmp` 临时环境导出 ONNX，并放入 `models/onnx/rear_yolo.onnx`。
@@ -189,7 +189,19 @@ ros2 launch ev_ads_bringup ev_ads_cpp_runtime.launch.xml \
 - DMS YOLO ONNX 已通过本机 OpenCV DNN 加载测试，项目检测器空白图推理成功，检测数量为 0。
 - XML launch 已通过 `xmllint` 检查。
 - `driver_monitor.yaml` 与 `rear_fisheye.yaml` 已通过 YAML 解析检查。
-- Mac 本机 `test/` 已通过 CMake/CTest：`common_and_fusion`、`event_store` 两项全部通过。
+- Mac 本机根目录级 CMake/CTest 已通过：
+  - `common_and_fusion`
+  - `event_store`
+  - `model_loading`
+  - `project_checks`
+
+统一命令：
+
+```bash
+cmake -S . -B build/mac
+cmake --build build/mac
+ctest --test-dir build/mac --output-on-failure
+```
 
 本机限制：
 

@@ -36,15 +36,24 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 colcon test --event-handlers console_direct+
 ```
 
-## 2.1 Mac 核心测试
+## 2.1 Mac 项目级测试
 
-该目录不依赖 ROS，可在 Mac 上直接验证核心算法和事件存储：
+该测试入口不依赖 ROS，可在 Mac 上统一验证核心算法、事件存储、ONNX 模型加载和项目配置：
 
 ```bash
-cmake -S test -B test/build
-cmake --build test/build
-ctest --test-dir test/build --output-on-failure
+cmake -S . -B build/mac
+cmake --build build/mac
+ctest --test-dir build/mac --output-on-failure
 ```
+
+当前测试项：
+
+| 测试 | 覆盖内容 |
+|---|---|
+| `common_and_fusion` | enum 转换、TTC、后向风险、疲劳分、融合 L3 门控 |
+| `event_store` | SQLite/WAL 批量写入、事件表、JSON 工具 |
+| `model_loading` | `driver_face_yunet.onnx`、`driver_dms_yolo.onnx`、`rear_yolo.onnx` 的 OpenCV 加载和空白图推理 |
+| `project_checks` | XML/YAML、模型 hash、launch 参数、SQLite 默认配置、非测试 Python 清理、文档口径 |
 
 ## 3. 无硬件冒烟测试
 
