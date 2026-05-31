@@ -2,22 +2,41 @@
 
 运行配置入口：`config/ev_ads_runtime.launch.xml`
 
-## 1. by-id 路径
+## 1. 稳定设备路径
 
-在 RK3588 上查看摄像头稳定路径：
+项目按 RK3588 上实际识别到的三路 UVC 摄像头配置了 udev 固定别名：
+
+| 用途 | dmesg 名称 | VID:PID | 固定路径 |
+|---|---|---|---|
+| 前置摄像头 | `ocal4` | `1bcf:28c5` | `/dev/ev_ads/front_camera` |
+| 后置鱼眼摄像头 | `A68-1600W` | `1bcf:2281` | `/dev/ev_ads/rear_fisheye` |
+| 驾驶员人脸摄像头 | `WebCamera` | `32e6:9221` | `/dev/ev_ads/driver_face` |
+
+安装或刷新规则：
+
+```bash
+cd /home/elf/Documents/ev_ads_cpp
+sudo cp deploy/udev/99-ev-ads-cameras.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger --subsystem-match=video4linux
+ls -l /dev/ev_ads
+```
+
+也可以查看系统原始路径：
 
 ```bash
 ls -l /dev/v4l/by-id/
+v4l2-ctl --list-devices
 ```
 
-把实际路径写到 launch 参数，或启动时覆盖：
+启动时默认使用 `/dev/ev_ads/*`。如需临时覆盖：
 
 ```bash
 ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
-  front_camera_device:=/dev/v4l/by-id/... \
-  rear_camera_device:=/dev/v4l/by-id/... \
-  driver_camera_device:=/dev/v4l/by-id/...
+  front_camera_device:=/dev/ev_ads/front_camera \
+  rear_camera_device:=/dev/ev_ads/rear_fisheye \
+  driver_camera_device:=/dev/ev_ads/driver_face
 ```
 
 ## 2. 推荐参数
@@ -36,6 +55,9 @@ C++ `camera_capture_node` 默认发布 `/camera/<name>/image_raw/compressed` 和
 ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml use_fakes:=false perception_mode:=idle
 ros2 topic hz /camera/front/image_raw/compressed
 ros2 topic echo /camera/front/health
+v4l2-ctl --device=/dev/ev_ads/front_camera --stream-mmap --stream-count=30
+v4l2-ctl --device=/dev/ev_ads/rear_fisheye --stream-mmap --stream-count=30
+v4l2-ctl --device=/dev/ev_ads/driver_face --stream-mmap --stream-count=30
 ```
 
 ## 4. 后置鱼眼标定

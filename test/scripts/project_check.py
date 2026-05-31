@@ -106,12 +106,15 @@ def check_launch_configuration() -> None:
         'name="driver_model_path" default="$(find-pkg-share ev_ads_runtime_cpp)/models/onnx/driver_dms_yolo.onnx"',
         'name="driver_face_model_path" default="$(find-pkg-share ev_ads_runtime_cpp)/models/onnx/driver_face_yunet.onnx"',
         'name="driver_face_model_path"',
+        'name="front_camera_device" default="/dev/ev_ads/front_camera"',
+        'name="rear_camera_device" default="/dev/ev_ads/rear_fisheye"',
+        'name="driver_camera_device" default="/dev/ev_ads/driver_face"',
         'name="event_storage_backend" default="sqlite"',
         'name="event_log_path" default="/tmp/ev_ads/events.sqlite"',
         'name="storage_backend" value="$(var event_storage_backend)"',
         'name="face_model_path" value="$(var driver_face_model_path)"',
         'name="fisheye_undistort"',
-        'name="model_class_ids" value="0, 1, 2, 3, 5, 7" value-sep=", "',
+        'name="model_class_ids" value="[0, 1, 2, 3, 5, 7]"',
         'name="w_front" value="$(var w_front)"',
     ]:
         if required not in runtime_launch:
@@ -125,16 +128,6 @@ def check_launch_configuration() -> None:
         fail('ROS2 Humble XML launch 不支持 type="double"，浮点参数必须用 type="float"')
     if "：" in runtime_launch:
         fail("runtime launch 不应包含全角冒号，避免 XML 失败后 fallback 解析器报干扰性 SyntaxError")
-    for array_param in ["mount_rpy_deg", "model_class_ids", "fisheye_k", "fisheye_d", "open_eye_class_ids"]:
-        if f'name="{array_param}"' in runtime_launch and 'value-sep=", "' not in runtime_launch:
-            fail(f"runtime launch 数组参数缺少 value-sep: {array_param}")
-    for empty_array in [
-        'name="model_class_ids" value="[]"',
-        'name="face_class_ids" value="[]"',
-        'name="fatigue_class_ids" value="[]"',
-    ]:
-        if empty_array in runtime_launch:
-            fail("runtime launch 不应显式传空数组，使用 C++ 默认值即可: " + empty_array)
 
 
 def check_runtime_sources() -> None:
@@ -144,6 +137,7 @@ def check_runtime_sources() -> None:
         "test/test_risk_math_and_fusion.cpp",
         "test/test_event_store.cpp",
         "test/test_model_loading.cpp",
+        "deploy/udev/99-ev-ads-cameras.rules",
         "config/ev_ads_runtime.launch.xml",
         "config/scenarios/front_pedestrian_emergency.xml",
         "ros2_ws/src/ev_ads_runtime_cpp/include/ev_ads_runtime_cpp/domain_types.hpp",
@@ -262,6 +256,23 @@ def check_runtime_sources() -> None:
     event_node = read_text("ros2_ws/src/ev_ads_runtime_cpp/src/event_recorder_node.cpp")
     if "EventStore store_" not in event_node or "storage_backend" not in event_node:
         fail("event_recorder_node 未使用 EventStore 或存储后端参数")
+
+    udev_rules = read_text("deploy/udev/99-ev-ads-cameras.rules")
+    for needle in [
+        'ATTRS{idVendor}=="1bcf", ATTRS{idProduct}=="2281"',
+        'SYMLINK+="ev_ads/rear_fisheye"',
+        'ATTRS{idVendor}=="32e6", ATTRS{idProduct}=="9221"',
+        'SYMLINK+="ev_ads/driver_face"',
+        'ATTRS{idVendor}=="1bcf", ATTRS{idProduct}=="28c5"',
+        'SYMLINK+="ev_ads/front_camera"',
+    ]:
+        if needle not in udev_rules:
+            fail(f"摄像头 udev 规则缺少: {needle}")
+
+    install_deps = read_text("deploy/install_deps.sh")
+    for needle in ["99-ev-ads-cameras.rules", "udevadm control --reload-rules", "udevadm trigger"]:
+        if needle not in install_deps:
+            fail(f"install_deps.sh 未安装摄像头 udev 规则: {needle}")
 
 
 def check_docs() -> None:

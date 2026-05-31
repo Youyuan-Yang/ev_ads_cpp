@@ -40,7 +40,7 @@ sudo apt install -y --no-install-recommends \
   network-manager wireless-tools wpasupplicant \
   chrony ntpdate \
   i2c-tools v4l-utils usbutils \
-  libopencv-dev cmake
+  libopencv-dev sqlite3 libsqlite3-dev cmake
 
 # =====================================================================
 # 2) ROS 2 Humble
@@ -57,6 +57,9 @@ if ! command -v ros2 >/dev/null 2>&1; then
   sudo apt install -y \
     ros-humble-ros-base ros-humble-cv-bridge \
     ros-humble-rosbag2 ros-humble-rosbag2-transport \
+    ros-humble-ament-cmake \
+    ros-humble-rosidl-default-generators \
+    ros-humble-rosidl-default-runtime \
     python3-colcon-common-extensions python3-rosdep python3-vcstool
   sudo rosdep init 2>/dev/null || true
   rosdep update || warn "rosdep update 失败，可稍后手动 'rosdep update'"
@@ -81,6 +84,17 @@ sudo usermod -aG dialout,video,i2c,bluetooth,plugdev "$USER"
 # =====================================================================
 log "4/6 启用蓝牙服务 ..."
 sudo systemctl enable --now bluetooth
+
+# =====================================================================
+# 4.5) 摄像头 udev 稳定别名
+# =====================================================================
+if [ -f "$EV_ADS_DIR/deploy/udev/99-ev-ads-cameras.rules" ]; then
+  log "4.5/6 安装摄像头 udev 规则 ..."
+  sudo cp "$EV_ADS_DIR/deploy/udev/99-ev-ads-cameras.rules" /etc/udev/rules.d/99-ev-ads-cameras.rules
+  sudo udevadm control --reload-rules
+  sudo udevadm trigger --subsystem-match=video4linux || true
+  log "  已配置 /dev/ev_ads/front_camera、rear_fisheye、driver_face"
+fi
 
 # =====================================================================
 # 5) 注册 systemd 开机自启

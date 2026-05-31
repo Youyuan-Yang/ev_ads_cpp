@@ -8,6 +8,7 @@
 - 摄像头、IMU、前向感知、后向感知、驾驶员监测、融合决策、HMI、事件记录、毫米波占位入口均为 C++。
 - 启动和运行参数统一为 ROS2 XML launch：`ev_ads_runtime.launch.xml`，不再混用 YAML/TOML。
 - 所有项目自有配置文件集中放在根目录 `config/`，ROS2 包只负责安装和运行。
+- 三路摄像头已按 RK3588 实机 VID/PID 配置 udev 固定路径：`/dev/ev_ads/front_camera`、`/dev/ev_ads/rear_fisheye`、`/dev/ev_ads/driver_face`。
 - `models/onnx/rear_yolo.onnx` 已放入，用于后置鱼眼第一版靠近识别；后置节点已支持 OpenCV fisheye 去畸变，参数写在 XML launch 中。
 - 驾驶员监测已放入 YuNet 人脸 ONNX 与 SafeDrive DMS YOLO ONNX，节点按人脸检测 + 闭眼/哈欠/手机行为检测组合运行。
 - 前置坑洼、路面病害、障碍物和“鬼探头”危险模型仍需专项训练。

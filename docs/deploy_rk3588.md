@@ -222,7 +222,35 @@ ls -l /dev/v4l/by-id
 v4l2-ctl --device=/dev/v4l/by-id/你的摄像头 --list-formats-ext
 ```
 
-把实际摄像头路径填到启动参数里，或直接改：
+当前项目已经按你在 RK3588 上看到的 UVC 设备信息配置了 udev 固定别名：
+
+| 用途 | dmesg 名称 | VID:PID | 固定路径 |
+|---|---|---|---|
+| 后置鱼眼摄像头 | `A68-1600W` | `1bcf:2281` | `/dev/ev_ads/rear_fisheye` |
+| 驾驶员人脸摄像头 | `WebCamera` | `32e6:9221` | `/dev/ev_ads/driver_face` |
+| 前置摄像头 | `ocal4` | `1bcf:28c5` | `/dev/ev_ads/front_camera` |
+
+安装或刷新 udev 规则：
+
+```bash
+cd /home/elf/Documents/ev_ads_cpp
+sudo cp deploy/udev/99-ev-ads-cameras.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger --subsystem-match=video4linux
+ls -l /dev/ev_ads
+```
+
+期望看到：
+
+```text
+front_camera
+rear_fisheye
+driver_face
+```
+
+`deploy/install_deps.sh` 也会自动安装这份 udev 规则。
+
+如果临时不使用 udev 固定路径，也可以把实际摄像头路径填到启动参数里，或直接改：
 
 ```text
 config/ev_ads_runtime.launch.xml
@@ -232,9 +260,9 @@ config/ev_ads_runtime.launch.xml
 
 | 参数 | 用途 |
 |---|---|
-| `front_camera_device` | 前置摄像头 |
-| `rear_camera_device` | 后置鱼眼摄像头 |
-| `driver_camera_device` | 驾驶员摄像头 |
+| `front_camera_device` | 默认 `/dev/ev_ads/front_camera`，前置摄像头 |
+| `rear_camera_device` | 默认 `/dev/ev_ads/rear_fisheye`，后置鱼眼摄像头 |
+| `driver_camera_device` | 默认 `/dev/ev_ads/driver_face`，驾驶员人脸摄像头 |
 
 ---
 
@@ -374,9 +402,9 @@ ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   perception_mode:=scripted \
   imu_driver:=i2c \
   mmwave_mode:=fake \
-  front_camera_device:=/dev/v4l/by-id/你的前置摄像头 \
-  rear_camera_device:=/dev/v4l/by-id/你的后置鱼眼 \
-  driver_camera_device:=/dev/v4l/by-id/你的驾驶员摄像头
+  front_camera_device:=/dev/ev_ads/front_camera \
+  rear_camera_device:=/dev/ev_ads/rear_fisheye \
+  driver_camera_device:=/dev/ev_ads/driver_face
 ```
 
 ### 7.3 模型模式
@@ -625,15 +653,19 @@ colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 ```bash
 groups
+ls -l /dev/ev_ads
 ls -l /dev/v4l/by-id
 v4l2-ctl --list-devices
-v4l2-ctl --device=/dev/v4l/by-id/你的摄像头 --stream-mmap --stream-count=30
+v4l2-ctl --device=/dev/ev_ads/front_camera --stream-mmap --stream-count=30
+v4l2-ctl --device=/dev/ev_ads/rear_fisheye --stream-mmap --stream-count=30
+v4l2-ctl --device=/dev/ev_ads/driver_face --stream-mmap --stream-count=30
 ```
 
 处理：
 
 - 用户不在 `video` 组：执行 §4 并重启。
-- `/dev/videoN` 漂移：使用 `/dev/v4l/by-id/...`。
+- `/dev/videoN` 漂移：优先使用 `/dev/ev_ads/...` udev 固定别名。
+- `/dev/ev_ads` 不存在：重新安装 `deploy/udev/99-ev-ads-cameras.rules` 并重新插拔摄像头。
 - 三路同时帧率低：换独立供电 USB Hub，降低分辨率或 FPS。
 - 摄像头不支持 MJPG：用 `v4l2-ctl --list-formats-ext` 查格式，再调整 launch 参数。
 
@@ -749,7 +781,7 @@ ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml use_fakes:=true percept
 - `grep -n 'type="double"\|：' "$(ros2 pkg prefix ev_ads_runtime_cpp)/share/ev_ads_runtime_cpp/launch/ev_ads_runtime.launch.xml"` 无输出。
 - `models/onnx` 中 3 个 ONNX 文件存在。
 - `use_fakes:=true perception_mode:=scripted` 可以启动。
-- 三路摄像头真实路径已替换为 `/dev/v4l/by-id/...`。
+- 三路摄像头真实路径已固定为 `/dev/ev_ads/front_camera`、`/dev/ev_ads/rear_fisheye`、`/dev/ev_ads/driver_face`。
 - `/decision/risk_state`、`/decision/warning_cmd` 有输出。
 - SQLite 事件库 `/tmp/ev_ads/events.sqlite` 能写入。
 - 真实制动仍保持禁用，除非低速台架验证完成。

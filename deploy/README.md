@@ -4,6 +4,7 @@
 |------|--------|------|
 | `install_deps.sh`        | 首次部署时跑一次 | 装 ROS 2 Humble + C++ OpenCV 开发库 + 权限 + systemd 服务 |
 | `ev_ads_boot.sh`         | 每次开机由 systemd 自动跑 | 等网 → 连 WiFi → 强制时间同步 → 启动 ROS 链路 |
+| `udev/99-ev-ads-cameras.rules` | 首次部署时安装 | 把三路 UVC 摄像头固定为 `/dev/ev_ads/*` |
 | `systemd/ev-ads.service` | 由 `install_deps.sh` 自动安装 | 让 `ev_ads_boot.sh` 开机自启 |
 
 ## 快速使用
@@ -26,6 +27,25 @@ sudo reboot
 # 4) 启动后查看日志
 tail -f /var/log/ev_ads.log
 sudo systemctl status ev-ads.service
+```
+
+## 摄像头固定路径
+
+`install_deps.sh` 会安装 udev 规则，把 RK3588 上的三路摄像头固定为：
+
+| 用途 | dmesg 名称 | VID:PID | 路径 |
+|---|---|---|---|
+| 前置 | `ocal4` | `1bcf:28c5` | `/dev/ev_ads/front_camera` |
+| 后置鱼眼 | `A68-1600W` | `1bcf:2281` | `/dev/ev_ads/rear_fisheye` |
+| 驾驶员人脸 | `WebCamera` | `32e6:9221` | `/dev/ev_ads/driver_face` |
+
+手动刷新：
+
+```bash
+sudo cp /home/elf/Documents/ev_ads_cpp/deploy/udev/99-ev-ads-cameras.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules
+sudo udevadm trigger --subsystem-match=video4linux
+ls -l /dev/ev_ads
 ```
 
 ## 手动调试（不走 systemd）
