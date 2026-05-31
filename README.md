@@ -35,7 +35,7 @@ ev_ads_cpp/
 
 根目录 `CMakeLists.txt` 现在是 EV-ADS runtime 总入口，不再是测试专用工程：
 
-- `EV_ADS_BUILD_ROS2_NATIVE=ON`：在已 source ROS2 的环境中，尝试直接把 `ev_ads_runtime_cpp` 作为真实 runtime 包纳入根 CMake。
+- `EV_ADS_BUILD_ROS2_NATIVE=OFF`：部署默认保持关闭，由根 CMake target 调用 colcon 构建真实 ROS2 runtime；需要调试 CMake 原生接入时再打开。
 - `EV_ADS_ENABLE_COLCON_TARGETS=ON`：提供从根目录调用 colcon 构建和 ros2 launch 的快捷 target。
 - `EV_ADS_BUILD_TESTS=ON`：构建 GoogleTest 项目级测试；生产部署可关闭。
 
@@ -44,7 +44,7 @@ RK3588 上推荐从根目录统一执行：
 ```bash
 cd /opt/ev_ads
 source /opt/ros/humble/setup.bash
-cmake -S . -B build/rk3588 -DEV_ADS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build/rk3588 -DEV_ADS_BUILD_ROS2_NATIVE=OFF -DEV_ADS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
 cmake --build build/rk3588 --target ros2_workspace_build
 cmake --build build/rk3588 --target run_ev_ads_fake
 ```

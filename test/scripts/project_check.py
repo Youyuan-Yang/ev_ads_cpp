@@ -151,6 +151,9 @@ def check_runtime_sources() -> None:
         "EV_ADS_BUILD_ROS2_NATIVE",
         "EV_ADS_RUNTIME_PACKAGE_DIR",
         "add_subdirectory(\"${EV_ADS_RUNTIME_PACKAGE_DIR}\"",
+        "file(GENERATE OUTPUT \"${EV_ADS_COLCON_BUILD_SCRIPT}\"",
+        "${CMAKE_COMMAND} -E env",
+        "/bin/bash \"${EV_ADS_COLCON_BUILD_SCRIPT}\"",
         "ros2_workspace_build",
         "run_ev_ads_fake",
         "run_ev_ads_hardware",
@@ -165,6 +168,8 @@ def check_runtime_sources() -> None:
             fail(f"根 CMake 未配置真实项目入口或 GoogleTest: {needle}")
     if "ev_ads_project_tests" in root_cmake:
         fail("根 CMake 仍是测试工程命名，必须是 EV-ADS runtime 总入口")
+    if "/bin/bash -lc" in root_cmake:
+        fail("根 CMake 不允许把多行 shell 直接塞进 /bin/bash -lc，Makefile 会拆坏换行")
 
     test_cmake = read_text("test/CMakeLists.txt")
     for needle in [

@@ -42,10 +42,12 @@ sudo apt install -y \
 ```bash
 cd /opt/ev_ads
 source /opt/ros/humble/setup.bash
-cmake -S . -B build/rk3588 -DEV_ADS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build/rk3588 -DEV_ADS_BUILD_ROS2_NATIVE=OFF -DEV_ADS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
 cmake --build build/rk3588 --target ros2_workspace_build
 source ros2_ws/install/setup.bash
 ```
+
+如果曾经在旧版本上看到 `/bin/bash -lc set\ -e` 这类 Makefile 报错，说明构建目录里缓存了旧的 target 展开方式。重新执行上面的 `cmake -S . -B build/rk3588 ...` 会刷新 Makefile；仍异常时删除 `build/rk3588` 后重新配置。
 
 也可以直接使用 ROS2 工作区命令：
 

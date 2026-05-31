@@ -31,7 +31,7 @@ ev_ads_runtime_cpp
 ```bash
 cd /opt/ev_ads
 source /opt/ros/humble/setup.bash
-cmake -S . -B build/rk3588 -DEV_ADS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build/rk3588 -DEV_ADS_BUILD_ROS2_NATIVE=OFF -DEV_ADS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
 cmake --build build/rk3588 --target ros2_workspace_build
 cmake --build build/rk3588 --target run_ev_ads_fake
 ```
