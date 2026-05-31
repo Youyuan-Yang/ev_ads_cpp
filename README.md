@@ -42,7 +42,7 @@ ev_ads_cpp/
 RK3588 上推荐从根目录统一执行：
 
 ```bash
-cd /opt/ev_ads
+cd /home/elf/Documents/ev_ads_cpp
 source /opt/ros/humble/setup.bash
 cmake -S . -B build/rk3588 -DEV_ADS_BUILD_ROS2_NATIVE=OFF -DEV_ADS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
 cmake --build build/rk3588 --target ros2_workspace_build
@@ -62,7 +62,7 @@ cmake --build build/rk3588 --target run_ev_ads_hardware
 无硬件演示：
 
 ```bash
-cd /opt/ev_ads/ros2_ws
+cd /home/elf/Documents/ev_ads_cpp/ros2_ws
 source /opt/ros/humble/setup.bash
 source install/setup.bash
 ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml use_fakes:=true
@@ -84,9 +84,9 @@ ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
 ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
   perception_mode:=model \
-  rear_model_path:=/opt/ev_ads/models/onnx/rear_yolo.onnx \
-  driver_model_path:=/opt/ev_ads/models/onnx/driver_dms_yolo.onnx \
-  driver_face_model_path:=/opt/ev_ads/models/onnx/driver_face_yunet.onnx
+  rear_model_path:=/home/elf/Documents/ev_ads_cpp/models/onnx/rear_yolo.onnx \
+  driver_model_path:=/home/elf/Documents/ev_ads_cpp/models/onnx/driver_dms_yolo.onnx \
+  driver_face_model_path:=/home/elf/Documents/ev_ads_cpp/models/onnx/driver_face_yunet.onnx
 ```
 
 ## 4. 主要节点

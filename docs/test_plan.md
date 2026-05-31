@@ -29,7 +29,7 @@ ev_ads_runtime_cpp
 根目录 CMake 已经作为项目总入口，生产构建时关闭测试，只构建/启动真实 ROS2 runtime：
 
 ```bash
-cd /opt/ev_ads
+cd /home/elf/Documents/ev_ads_cpp
 source /opt/ros/humble/setup.bash
 cmake -S . -B build/rk3588 -DEV_ADS_BUILD_ROS2_NATIVE=OFF -DEV_ADS_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release
 cmake --build build/rk3588 --target ros2_workspace_build
@@ -39,7 +39,7 @@ cmake --build build/rk3588 --target run_ev_ads_fake
 也可以继续使用 ROS2 标准工作区命令：
 
 ```bash
-cd /opt/ev_ads/ros2_ws
+cd /home/elf/Documents/ev_ads_cpp/ros2_ws
 source /opt/ros/humble/setup.bash
 rosdep install --from-paths src --ignore-src -r -y
 colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
@@ -109,9 +109,9 @@ ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
 ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
   perception_mode:=model \
-  rear_model_path:=/opt/ev_ads/models/onnx/rear_yolo.onnx \
-  driver_model_path:=/opt/ev_ads/models/onnx/driver_dms_yolo.onnx \
-  driver_face_model_path:=/opt/ev_ads/models/onnx/driver_face_yunet.onnx
+  rear_model_path:=/home/elf/Documents/ev_ads_cpp/models/onnx/rear_yolo.onnx \
+  driver_model_path:=/home/elf/Documents/ev_ads_cpp/models/onnx/driver_dms_yolo.onnx \
+  driver_face_model_path:=/home/elf/Documents/ev_ads_cpp/models/onnx/driver_face_yunet.onnx
 ```
 
 验收：

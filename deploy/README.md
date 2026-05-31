@@ -9,7 +9,7 @@
 ## 快速使用
 
 ```bash
-cd /opt/ev_ads/deploy
+cd /home/elf/Documents/ev_ads_cpp/deploy
 
 # 1) 一次性装好所有依赖（中途会问 2 个 y/n）
 bash install_deps.sh

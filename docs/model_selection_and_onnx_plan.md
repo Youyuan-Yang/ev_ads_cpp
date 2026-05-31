@@ -38,7 +38,7 @@ models/onnx/rear_yolo.onnx
 ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
   perception_mode:=model \
-  rear_model_path:=/opt/ev_ads/models/onnx/rear_yolo.onnx
+  rear_model_path:=/home/elf/Documents/ev_ads_cpp/models/onnx/rear_yolo.onnx
 ```
 
 后置参数：
@@ -98,8 +98,8 @@ SafeDrive DMS YOLO：eye_open / eye_half / eye_closed / mouth_open / mouth_close
 ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
   perception_mode:=model \
-  driver_face_model_path:=/opt/ev_ads/models/onnx/driver_face_yunet.onnx \
-  driver_model_path:=/opt/ev_ads/models/onnx/driver_dms_yolo.onnx
+  driver_face_model_path:=/home/elf/Documents/ev_ads_cpp/models/onnx/driver_face_yunet.onnx \
+  driver_model_path:=/home/elf/Documents/ev_ads_cpp/models/onnx/driver_dms_yolo.onnx
 ```
 
 来源与校验：

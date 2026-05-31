@@ -112,7 +112,7 @@
     <param name="addr" value="104"/>
     <param name="rate_hz" value="100.0"/>
     <param name="publish_imu" value="true"/>
-    <param name="mount_rpy_deg" value="[0.0, 0.0, 0.0]"/>
+    <param name="mount_rpy_deg" value="0.0, 0.0, 0.0" value-sep=", "/>
     <param name="lowpass_alpha" value="0.2"/>
     <param name="bias_seconds" value="2.0"/>
     <param name="hard_brake_g" value="0.6"/>
@@ -128,7 +128,7 @@
     <param name="addr" value="104"/>
     <param name="rate_hz" value="100.0"/>
     <param name="publish_imu" value="true"/>
-    <param name="mount_rpy_deg" value="[0.0, 0.0, 0.0]"/>
+    <param name="mount_rpy_deg" value="0.0, 0.0, 0.0" value-sep=", "/>
     <param name="lowpass_alpha" value="0.2"/>
     <param name="bias_seconds" value="2.0"/>
     <param name="hard_brake_g" value="0.6"/>
@@ -156,13 +156,13 @@
     <param name="model_confidence_threshold" value="0.35"/>
     <param name="model_nms_threshold" value="0.45"/>
     <param name="model_has_objectness" value="false"/>
-    <param name="model_class_ids" value="[0, 1, 2, 3, 5, 7]"/>
+    <param name="model_class_ids" value="0, 1, 2, 3, 5, 7" value-sep=", "/>
     <param name="distance_focal_px" value="700.0"/>
     <param name="present_max_m" value="10.0"/>
     <param name="approaching_speed_mps" value="1.0"/>
     <param name="fisheye_undistort" value="false"/>
-    <param name="fisheye_k" value="[700.0, 700.0, 960.0, 540.0]"/>
-    <param name="fisheye_d" value="[0.0, 0.0, 0.0, 0.0]"/>
+    <param name="fisheye_k" value="700.0, 700.0, 960.0, 540.0" value-sep=", "/>
+    <param name="fisheye_d" value="0.0, 0.0, 0.0, 0.0" value-sep=", "/>
     <param name="fisheye_balance" value="0.25"/>
     <param name="fisheye_fov_scale" value="1.0"/>
   </node>
@@ -180,15 +180,12 @@
     <param name="model_confidence_threshold" value="0.35"/>
     <param name="model_nms_threshold" value="0.45"/>
     <param name="model_has_objectness" value="false"/>
-    <param name="model_class_ids" value="[]"/>
-    <param name="face_class_ids" value="[]"/>
-    <param name="open_eye_class_ids" value="[0]"/>
-    <param name="half_eye_class_ids" value="[1]"/>
-    <param name="closed_eye_class_ids" value="[2]"/>
-    <param name="yawn_class_ids" value="[3]"/>
-    <param name="phone_class_ids" value="[5]"/>
-    <param name="distracted_class_ids" value="[6]"/>
-    <param name="fatigue_class_ids" value="[]"/>
+    <param name="open_eye_class_ids" value="0" value-sep=", "/>
+    <param name="half_eye_class_ids" value="1" value-sep=", "/>
+    <param name="closed_eye_class_ids" value="2" value-sep=", "/>
+    <param name="yawn_class_ids" value="3" value-sep=", "/>
+    <param name="phone_class_ids" value="5" value-sep=", "/>
+    <param name="distracted_class_ids" value="6" value-sep=", "/>
     <param name="face_input_width" value="320"/>
     <param name="face_input_height" value="320"/>
     <param name="face_score_threshold" value="0.60"/>

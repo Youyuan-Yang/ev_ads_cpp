@@ -150,9 +150,9 @@ ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
 ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
   use_fakes:=false \
   perception_mode:=model \
-  rear_model_path:=/opt/ev_ads/models/onnx/rear_yolo.onnx \
-  driver_model_path:=/opt/ev_ads/models/onnx/driver_dms_yolo.onnx \
-  driver_face_model_path:=/opt/ev_ads/models/onnx/driver_face_yunet.onnx
+  rear_model_path:=/home/elf/Documents/ev_ads_cpp/models/onnx/rear_yolo.onnx \
+  driver_model_path:=/home/elf/Documents/ev_ads_cpp/models/onnx/driver_dms_yolo.onnx \
+  driver_face_model_path:=/home/elf/Documents/ev_ads_cpp/models/onnx/driver_face_yunet.onnx
 ```
 
 ## 7. 关键操作记录

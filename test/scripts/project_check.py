@@ -111,7 +111,7 @@ def check_launch_configuration() -> None:
         'name="storage_backend" value="$(var event_storage_backend)"',
         'name="face_model_path" value="$(var driver_face_model_path)"',
         'name="fisheye_undistort"',
-        'name="model_class_ids" value="[0, 1, 2, 3, 5, 7]"',
+        'name="model_class_ids" value="0, 1, 2, 3, 5, 7" value-sep=", "',
         'name="w_front" value="$(var w_front)"',
     ]:
         if required not in runtime_launch:
@@ -125,6 +125,16 @@ def check_launch_configuration() -> None:
         fail('ROS2 Humble XML launch 不支持 type="double"，浮点参数必须用 type="float"')
     if "：" in runtime_launch:
         fail("runtime launch 不应包含全角冒号，避免 XML 失败后 fallback 解析器报干扰性 SyntaxError")
+    for array_param in ["mount_rpy_deg", "model_class_ids", "fisheye_k", "fisheye_d", "open_eye_class_ids"]:
+        if f'name="{array_param}"' in runtime_launch and 'value-sep=", "' not in runtime_launch:
+            fail(f"runtime launch 数组参数缺少 value-sep: {array_param}")
+    for empty_array in [
+        'name="model_class_ids" value="[]"',
+        'name="face_class_ids" value="[]"',
+        'name="fatigue_class_ids" value="[]"',
+    ]:
+        if empty_array in runtime_launch:
+            fail("runtime launch 不应显式传空数组，使用 C++ 默认值即可: " + empty_array)
 
 
 def check_runtime_sources() -> None:
@@ -263,6 +273,8 @@ def check_docs() -> None:
     for needle in ["EV_ADS_BUILD_ROS2_NATIVE", "EV_ADS_BUILD_TESTS", "ros2_workspace_build", "run_ev_ads_hardware"]:
         if needle not in readme:
             fail(f"README 未说明根 CMake 真实项目入口: {needle}")
+    if "/opt/ev_ads" in readme:
+        fail("README 仍使用旧 RK3588 路径 /opt/ev_ads，应改为 /home/elf/Documents/ev_ads_cpp")
     if "SQLite/WAL" not in readme:
         fail("README 未说明 SQLite/WAL 事件记录")
     if "XML/YAML" in readme or ".yaml" in readme or ".toml" in readme:
@@ -272,6 +284,18 @@ def check_docs() -> None:
     for needle in ["cmake -S . -B build/mac", "ros2_workspace_build", "events.sqlite", "GoogleTest", "ModelLoading", "XML-only"]:
         if needle not in test_plan:
             fail(f"测试计划未覆盖: {needle}")
+
+    for rel in [
+        "docs/deploy_rk3588.md",
+        "docs/test_plan.md",
+        "docs/model_selection_and_onnx_plan.md",
+        "deploy/README.md",
+    ]:
+        text = read_text(rel)
+        if "/opt/ev_ads" in text:
+            fail(f"{rel} 仍使用旧 RK3588 路径 /opt/ev_ads")
+        if "/home/elf/Documents/ev_ads_cpp" not in text:
+            fail(f"{rel} 未写入当前 RK3588 项目路径 /home/elf/Documents/ev_ads_cpp")
 
 
 def main() -> None:
