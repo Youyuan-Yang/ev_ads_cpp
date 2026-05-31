@@ -121,6 +121,10 @@ def check_launch_configuration() -> None:
 
     if 'default=""' in runtime_launch:
         fail("根配置仍有空默认路径")
+    if 'type="double"' in runtime_launch:
+        fail('ROS2 Humble XML launch 不支持 type="double"，浮点参数必须用 type="float"')
+    if "：" in runtime_launch:
+        fail("runtime launch 不应包含全角冒号，避免 XML 失败后 fallback 解析器报干扰性 SyntaxError")
 
 
 def check_runtime_sources() -> None:

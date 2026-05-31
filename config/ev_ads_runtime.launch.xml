@@ -1,5 +1,5 @@
 <launch>
-  <!-- C++ 运行链路：业务运行参数统一写在 ROS2 XML launch 中。 -->
+  <!-- C++ 运行链路: 业务运行参数统一写在 ROS2 XML launch 中。 -->
   <arg name="use_fakes" default="true"/>
   <arg name="perception_mode" default="scripted"/>
   <arg name="imu_driver" default="i2c"/>
@@ -201,16 +201,16 @@
   <node pkg="ev_ads_runtime_cpp" exec="risk_fusion_node" name="risk_fusion" output="screen">
     <param name="publish_rate_hz" value="20.0"/>
     <param name="profile" value="$(var fusion_profile)"/>
-    <param name="w_front" value="$(var w_front)" type="double"/>
-    <param name="w_rear" value="$(var w_rear)" type="double"/>
-    <param name="w_driver" value="$(var w_driver)" type="double"/>
-    <param name="w_imu" value="$(var w_imu)" type="double"/>
-    <param name="w_mmwave" value="$(var w_mmwave)" type="double"/>
-    <param name="thr_l1" value="$(var thr_l1)" type="double"/>
-    <param name="thr_l2" value="$(var thr_l2)" type="double"/>
-    <param name="thr_l3" value="$(var thr_l3)" type="double"/>
+    <param name="w_front" value="$(var w_front)" type="float"/>
+    <param name="w_rear" value="$(var w_rear)" type="float"/>
+    <param name="w_driver" value="$(var w_driver)" type="float"/>
+    <param name="w_imu" value="$(var w_imu)" type="float"/>
+    <param name="w_mmwave" value="$(var w_mmwave)" type="float"/>
+    <param name="thr_l1" value="$(var thr_l1)" type="float"/>
+    <param name="thr_l2" value="$(var thr_l2)" type="float"/>
+    <param name="thr_l3" value="$(var thr_l3)" type="float"/>
     <param name="hysteresis" value="0.05"/>
-    <param name="front_ttc_l3" value="$(var front_ttc_l3)" type="double"/>
+    <param name="front_ttc_l3" value="$(var front_ttc_l3)" type="float"/>
     <param name="enable_real_brake" value="$(var enable_real_brake)" type="bool"/>
     <param name="zero_stale" value="true"/>
     <param name="stale_reliability" value="0.25"/>

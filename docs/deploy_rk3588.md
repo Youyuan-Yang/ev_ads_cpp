@@ -49,6 +49,8 @@ source ros2_ws/install/setup.bash
 
 如果曾经在旧版本上看到 `/bin/bash -lc set\ -e` 这类 Makefile 报错，说明构建目录里缓存了旧的 target 展开方式。重新执行上面的 `cmake -S . -B build/rk3588 ...` 会刷新 Makefile；仍异常时删除 `build/rk3588` 后重新配置。
 
+如果 `ros2 launch` 报 `invalid type identifier 'double'`，说明安装目录里仍是旧版 `ev_ads_runtime.launch.xml`。当前版本的 XML launch 已按 ROS2 Humble 规则把浮点类型写为 `type="float"`；请重新执行 `cmake --build build/rk3588 --target ros2_workspace_build`，再 `source ros2_ws/install/setup.bash` 后启动。
+
 也可以直接使用 ROS2 工作区命令：
 
 ```bash

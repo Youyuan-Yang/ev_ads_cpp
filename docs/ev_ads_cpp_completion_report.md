@@ -179,6 +179,7 @@ ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml \
 - 将 SafeDrive 类别 ID、YuNet 阈值和人脸消失风险参数写入 `ev_ads_runtime.launch.xml`。
 - 记录模型来源、hash 和本机 OpenCV 加载测试结果。
 - 将原 `assert + main` 测试改为 GoogleTest `TEST(...)` 写法，并通过 `gtest_discover_tests` 接入 CTest。
+- 修正 `ev_ads_runtime.launch.xml`：ROS2 Humble XML launch 的浮点类型标识必须使用 `type="float"`，不能使用 `type="double"`；同时移除 launch 注释中的全角冒号，避免 XML 解析失败时 fallback 报干扰性 SyntaxError。
 
 ## 8. 自检结果
 
