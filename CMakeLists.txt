@@ -29,78 +29,69 @@ if(EV_ADS_BUILD_ROS2_NATIVE)
 endif()
 
 if(EV_ADS_ENABLE_COLCON_TARGETS AND UNIX)
-  set(EV_ADS_COLCON_BUILD_COMMAND [=[
+  set(EV_ADS_COLCON_BUILD_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/ros2_workspace_build.sh")
+  set(EV_ADS_RUN_FAKE_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/run_ev_ads_fake.sh")
+  set(EV_ADS_RUN_HARDWARE_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/run_ev_ads_hardware.sh")
+
+  file(GENERATE OUTPUT "${EV_ADS_COLCON_BUILD_SCRIPT}" CONTENT [=[
 set -e
-if [ ! -f "$EV_ADS_ROS_SETUP" ]; then
-  echo "未找到 ROS2 环境: $EV_ADS_ROS_SETUP" >&2
+if [ ! -f "${EV_ADS_ROS_SETUP}" ]; then
+  echo "未找到 ROS2 环境: ${EV_ADS_ROS_SETUP}" >&2
   exit 2
 fi
 if ! command -v colcon >/dev/null 2>&1; then
   echo "未找到 colcon，请先安装 python3-colcon-common-extensions" >&2
   exit 3
 fi
-source "$EV_ADS_ROS_SETUP"
-cd "$EV_ADS_ROS_WORKSPACE"
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE="$EV_ADS_COLCON_BUILD_TYPE"
+source "${EV_ADS_ROS_SETUP}"
+cd "${EV_ADS_ROS_WORKSPACE}"
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE="${EV_ADS_COLCON_BUILD_TYPE}"
 ]=])
 
-  set(EV_ADS_RUN_FAKE_COMMAND [=[
+  file(GENERATE OUTPUT "${EV_ADS_RUN_FAKE_SCRIPT}" CONTENT [=[
 set -e
-if [ ! -f "$EV_ADS_ROS_SETUP" ]; then
-  echo "未找到 ROS2 环境: $EV_ADS_ROS_SETUP" >&2
+if [ ! -f "${EV_ADS_ROS_SETUP}" ]; then
+  echo "未找到 ROS2 环境: ${EV_ADS_ROS_SETUP}" >&2
   exit 2
 fi
-if [ ! -f "$EV_ADS_ROS_WORKSPACE/install/setup.bash" ]; then
-  echo "未找到已构建工作区: $EV_ADS_ROS_WORKSPACE/install/setup.bash，请先执行 cmake --build <build-dir> --target ros2_workspace_build" >&2
+if [ ! -f "${EV_ADS_ROS_WORKSPACE}/install/setup.bash" ]; then
+  echo "未找到已构建工作区: ${EV_ADS_ROS_WORKSPACE}/install/setup.bash，请先执行 cmake --build <build-dir> --target ros2_workspace_build" >&2
   exit 3
 fi
-source "$EV_ADS_ROS_SETUP"
-source "$EV_ADS_ROS_WORKSPACE/install/setup.bash"
+source "${EV_ADS_ROS_SETUP}"
+source "${EV_ADS_ROS_WORKSPACE}/install/setup.bash"
 ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml use_fakes:=true perception_mode:=scripted
 ]=])
 
-  set(EV_ADS_RUN_HARDWARE_COMMAND [=[
+  file(GENERATE OUTPUT "${EV_ADS_RUN_HARDWARE_SCRIPT}" CONTENT [=[
 set -e
-if [ ! -f "$EV_ADS_ROS_SETUP" ]; then
-  echo "未找到 ROS2 环境: $EV_ADS_ROS_SETUP" >&2
+if [ ! -f "${EV_ADS_ROS_SETUP}" ]; then
+  echo "未找到 ROS2 环境: ${EV_ADS_ROS_SETUP}" >&2
   exit 2
 fi
-if [ ! -f "$EV_ADS_ROS_WORKSPACE/install/setup.bash" ]; then
-  echo "未找到已构建工作区: $EV_ADS_ROS_WORKSPACE/install/setup.bash，请先执行 cmake --build <build-dir> --target ros2_workspace_build" >&2
+if [ ! -f "${EV_ADS_ROS_WORKSPACE}/install/setup.bash" ]; then
+  echo "未找到已构建工作区: ${EV_ADS_ROS_WORKSPACE}/install/setup.bash，请先执行 cmake --build <build-dir> --target ros2_workspace_build" >&2
   exit 3
 fi
-source "$EV_ADS_ROS_SETUP"
-source "$EV_ADS_ROS_WORKSPACE/install/setup.bash"
+source "${EV_ADS_ROS_SETUP}"
+source "${EV_ADS_ROS_WORKSPACE}/install/setup.bash"
 ros2 launch ev_ads_runtime_cpp ev_ads_runtime.launch.xml use_fakes:=false perception_mode:=model
 ]=])
 
   add_custom_target(ros2_workspace_build
-    COMMAND
-      ${CMAKE_COMMAND} -E env
-        "EV_ADS_ROS_SETUP=${EV_ADS_ROS_SETUP}"
-        "EV_ADS_ROS_WORKSPACE=${EV_ADS_ROS_WORKSPACE}"
-        "EV_ADS_COLCON_BUILD_TYPE=${EV_ADS_COLCON_BUILD_TYPE}"
-        /bin/bash -lc "${EV_ADS_COLCON_BUILD_COMMAND}"
+    COMMAND /bin/bash "${EV_ADS_COLCON_BUILD_SCRIPT}"
     USES_TERMINAL
     COMMENT "使用根目录 CMake target 调用 colcon 构建真实 ROS2 runtime"
   )
 
   add_custom_target(run_ev_ads_fake
-    COMMAND
-      ${CMAKE_COMMAND} -E env
-        "EV_ADS_ROS_SETUP=${EV_ADS_ROS_SETUP}"
-        "EV_ADS_ROS_WORKSPACE=${EV_ADS_ROS_WORKSPACE}"
-        /bin/bash -lc "${EV_ADS_RUN_FAKE_COMMAND}"
+    COMMAND /bin/bash "${EV_ADS_RUN_FAKE_SCRIPT}"
     USES_TERMINAL
     COMMENT "从根目录启动 EV-ADS fake/scripted 演示链路"
   )
 
   add_custom_target(run_ev_ads_hardware
-    COMMAND
-      ${CMAKE_COMMAND} -E env
-        "EV_ADS_ROS_SETUP=${EV_ADS_ROS_SETUP}"
-        "EV_ADS_ROS_WORKSPACE=${EV_ADS_ROS_WORKSPACE}"
-        /bin/bash -lc "${EV_ADS_RUN_HARDWARE_COMMAND}"
+    COMMAND /bin/bash "${EV_ADS_RUN_HARDWARE_SCRIPT}"
     USES_TERMINAL
     COMMENT "从根目录启动 EV-ADS 真实硬件/模型链路"
   )
